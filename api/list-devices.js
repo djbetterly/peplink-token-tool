@@ -10,7 +10,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing access_token or org_id" });
     }
 
-    const response = await fetch(`https://api.ic.peplink.com/rest/o/${org_id}/g?access_token=${access_token}`);
+    // Correct URL to list devices
+    const response = await fetch(`https://api.ic.peplink.com/rest/o/${org_id}/d?access_token=${access_token}`);
 
     const data = await response.json();
 
