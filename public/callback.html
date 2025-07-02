@@ -40,7 +40,6 @@
     const code = urlParams.get('code');
     if (code) document.getElementById('code').value = code;
 
-    // Load stored credentials
     document.getElementById('client_id').value = localStorage.getItem('peplink_client_id') || '';
     document.getElementById('client_secret').value = localStorage.getItem('peplink_client_secret') || '';
     document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
@@ -80,7 +79,6 @@
         redirect_uri: document.getElementById('redirect_uri').value
       };
 
-      // Save credentials
       localStorage.setItem('peplink_client_id', body.client_id);
       localStorage.setItem('peplink_client_secret', body.client_secret);
       localStorage.setItem('peplink_redirect_uri', body.redirect_uri);
@@ -157,10 +155,6 @@
           orgId.textContent = `Organization ID: ${org.id}`;
           orgId.appendChild(createCopyButton(org.id));
 
-          const orgCode = document.createElement('div');
-          orgCode.textContent = `Org Code: ${org.org_code}`;
-          orgCode.appendChild(createCopyButton(org.org_code));
-
           const status = document.createElement('div');
           status.textContent = `Status: ${org.status}`;
 
@@ -169,7 +163,6 @@
 
           div.appendChild(orgName);
           div.appendChild(orgId);
-          div.appendChild(orgCode);
           div.appendChild(status);
           div.appendChild(link);
 
@@ -237,11 +230,9 @@
       txt += `Token Type: ${allData.tokens.token_type}\n`;
       txt += `Expires In: ${allData.tokens.expires_in} seconds\n\n`;
 
-      txt += 'Organization Data:\n\n';
       allData.orgs.forEach(o => {
         txt += `Organization Name: ${o.org.name}\n`;
         txt += `Organization ID: ${o.org.id}\n`;
-        txt += `Org Code: ${o.org.org_code}\n`;
         txt += `Status: ${o.org.status}\n`;
         txt += `InControl URL: ${o.org.url}\n\n`;
         if (o.devices.length) {
