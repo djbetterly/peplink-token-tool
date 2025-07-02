@@ -1,12 +1,21 @@
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const { client_id, client_secret, redirect_uri, code } = req.body;
+    // Log exactly what body arrived
+    console.log("DEBUG: Raw body received:", req.body);
+
+    const { client_id, client_secret, redirect_uri, code } = req.body || {};
+
+    // If any are missing, return immediately
+    if (!client_id || !client_secret || !redirect_uri || !code) {
+      return res.status(400).json({
+        error: "Missing required fields",
+        received: { client_id, client_secret, redirect_uri, code }
+      });
+    }
 
     const tokenResponse = await fetch("https://api.ic.peplink.com/api/oauth2/token", {
       method: "POST",
@@ -14,11 +23,11 @@ export default async function handler(req, res) {
         "Content-Type": "application/x-www-form-urlencoded"
       },
       body: new URLSearchParams({
-        client_id: client_id,
-        client_secret: client_secret,
+        client_id,
+        client_secret,
         grant_type: "authorization_code",
-        code: code,
-        redirect_uri: redirect_uri
+        code,
+        redirect_uri
       })
     });
 
@@ -31,10 +40,11 @@ export default async function handler(req, res) {
       });
     }
 
-    res.status(200).json(tokenData);
+    return res.status(200).json(tokenData);
 
   } catch (err) {
-    res.status(500).json({
+    console.error("ERROR:", err);
+    return res.status(500).json({
       error: "Server error",
       message: err.message,
       stack: err.stack
