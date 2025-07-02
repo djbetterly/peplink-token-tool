@@ -2,88 +2,87 @@
 <html>
 <head>
   <title>Peplink OAuth Code Exchange</title>
-<style>
-  body {
-    background: #000;
-    color: #FFCC00;
-    font-family: Arial, sans-serif;
-    padding: 20px;
-  }
-  h2, h3 {
-    color: #FFCC00;
-  }
-  .section {
-    background: #111;
-    border: 1px solid #FFCC00;
-    border-radius: 6px;
-    padding: 15px;
-    margin-bottom: 20px;
-    box-shadow: 0 0 10px rgba(255,204,0,0.1);
-  }
-  .device {
-    margin: 8px 0 8px 20px;
-    padding: 6px;
-    border: 1px solid #333;
-    background: #000;
-    color: #fff;
-    border-radius: 4px;
-  }
-  .copy-btn {
-    margin-left: 10px;
-    background: #FFCC00;
-    color: #000;
-    border: none;
-    padding: 3px 6px;
-    font-weight: bold;
-    cursor: pointer;
-    border-radius: 3px;
-  }
-  .copy-btn:hover {
-    background: #ffe066;
-  }
-  label {
-    font-weight: bold;
-    color: #FFCC00;
-  }
-  input {
-    background: #222;
-    color: #fff;
-    border: 1px solid #FFCC00;
-    padding: 6px;
-    border-radius: 4px;
-    width: 400px;
-  }
-  button {
-    background: #FFCC00;
-    color: #000;
-    border: none;
-    padding: 8px 12px;
-    font-weight: bold;
-    cursor: pointer;
-    border-radius: 4px;
-    margin-right: 8px;
-  }
-  button:hover {
-    background: #ffe066;
-  }
-  a {
-    color: #FFCC00;
-    text-decoration: underline;
-  }
-</style>
-
+  <style>
+    body {
+      background: #000;
+      color: #FFCC00;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h2, h3 {
+      color: #FFCC00;
+    }
+    .section {
+      background: #111;
+      border: 1px solid #FFCC00;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 10px rgba(255,204,0,0.1);
+    }
+    .device {
+      margin: 8px 0 8px 20px;
+      padding: 6px;
+      border: 1px solid #333;
+      background: #000;
+      color: #fff;
+      border-radius: 4px;
+    }
+    .copy-btn {
+      margin-left: 10px;
+      background: #FFCC00;
+      color: #000;
+      border: none;
+      padding: 3px 6px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .copy-btn:hover {
+      background: #ffe066;
+    }
+    label {
+      font-weight: bold;
+      color: #FFCC00;
+    }
+    input {
+      background: #222;
+      color: #fff;
+      border: 1px solid #FFCC00;
+      padding: 6px;
+      border-radius: 4px;
+      width: 400px;
+    }
+    button {
+      background: #FFCC00;
+      color: #000;
+      border: none;
+      padding: 8px 12px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-right: 8px;
+    }
+    button:hover {
+      background: #ffe066;
+    }
+    a {
+      color: #FFCC00;
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
   <h2>Exchange OAuth Code for Token</h2>
-  <form id="exchange-form">
+  <form id="exchange-form" class="section">
     <label>Code:</label><br>
-    <input id="code" style="width:400px;"><br><br>
+    <input id="code"><br><br>
     <label>Client ID:</label><br>
-    <input id="client_id" style="width:400px;"><br><br>
+    <input id="client_id"><br><br>
     <label>Client Secret:</label><br>
-    <input id="client_secret" style="width:400px;"><br><br>
+    <input id="client_secret"><br><br>
     <label>Redirect URI:</label><br>
-    <input id="redirect_uri" style="width:400px;" value="https://peplink.logic-box.co/callback.html"><br><br>
+    <input id="redirect_uri" value="https://peplink.logic-box.co/callback.html"><br><br>
     <button type="submit">Fetch Token</button>
   </form>
 
@@ -211,42 +210,34 @@
           const div = document.createElement('div');
           div.className = 'section';
 
-          // Fetch groups
-          let group = null;
           const resGroups = await fetch('/api/list-groups', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
           });
           const groupsJson = await resGroups.json();
-          if (groupsJson.data && Array.isArray(groupsJson.data) && groupsJson.data.length > 0) {
-            group = groupsJson.data[0];
-          }
+          let group = null;
+          if (groupsJson.data && groupsJson.data.length > 0) group = groupsJson.data[0];
 
-          // Organization Name
           const orgName = document.createElement('div');
           orgName.textContent = `Organization Name: ${org.name}`;
           div.appendChild(orgName);
 
-          // Group Name
           if (group) {
             const groupName = document.createElement('div');
             groupName.textContent = `Group Name: ${group.name}`;
             div.appendChild(groupName);
           }
 
-          // Separator
           const sep1 = document.createElement('div');
           sep1.textContent = '--';
           div.appendChild(sep1);
 
-          // Organization ID
           const orgId = document.createElement('div');
           orgId.textContent = `Organization ID: ${org.id}`;
           orgId.appendChild(createCopyButton(org.id));
           div.appendChild(orgId);
 
-          // Group ID
           if (group) {
             const groupId = document.createElement('div');
             groupId.textContent = `Group ID: ${group.id}`;
@@ -254,22 +245,18 @@
             div.appendChild(groupId);
           }
 
-          // Separator
           const sep2 = document.createElement('div');
           sep2.textContent = '--';
           div.appendChild(sep2);
 
-          // Status
           const status = document.createElement('div');
           status.textContent = `Status: ${org.status}`;
           div.appendChild(status);
 
-          // Link
           const link = document.createElement('div');
           link.innerHTML = `<a href="${org.url}" target="_blank">View in InControl</a>`;
           div.appendChild(link);
 
-          // Devices
           const resDevices = await fetch('/api/list-devices', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -287,50 +274,7 @@
           allData.orgs.push({ org, group, devices });
           container.appendChild(div);
         }
-      } else {
-        container.textContent = JSON.stringify(json, null, 2);
       }
-    });
-
-    document.getElementById('export-btn').addEventListener('click', () => {
-      let txt = 'Peplink OAuth Information\n\n';
-      txt += 'Exchange OAuth Code for Token\n\n';
-      txt += `Code: ${document.getElementById('code').value}\n\n`;
-      txt += `Client ID: ${document.getElementById('client_id').value}\n\n`;
-      txt += `Client Secret: ${document.getElementById('client_secret').value}\n\n`;
-      txt += `Redirect URI: ${document.getElementById('redirect_uri').value}\n\n`;
-
-      txt += 'Token Response:\n';
-      txt += `Access Token: ${allData.tokens.access_token}\n`;
-      txt += `Refresh Token: ${allData.tokens.refresh_token}\n`;
-      txt += `Token Type: ${allData.tokens.token_type}\n`;
-      txt += `Expires In: ${allData.tokens.expires_in} seconds\n\n`;
-
-      allData.orgs.forEach(o => {
-        txt += `Organization Name: ${o.org.name}\n`;
-        if (o.group) txt += `Group Name: ${o.group.name}\n`;
-        txt += `--\n`;
-        txt += `Organization ID: ${o.org.id}\n`;
-        if (o.group) txt += `Group ID: ${o.group.id}\n`;
-        txt += `--\n`;
-        txt += `Status: ${o.org.status}\n`;
-        txt += `InControl URL: ${o.org.url}\n\n`;
-        if (o.devices && o.devices.length) {
-          o.devices.forEach(d => {
-            txt += `  Device Name: ${d.name}\n`;
-            txt += `  Device ID: ${d.id}\n`;
-          });
-        }
-        txt += '\n';
-      });
-
-      const blob = new Blob([txt], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'peplink_info.txt';
-      a.click();
-      URL.revokeObjectURL(url);
     });
   </script>
 </body>
