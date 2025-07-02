@@ -24,7 +24,7 @@
   <h3>Organization Data:</h3>
   <pre id="ids-result"></pre>
 
-  <script>
+<script>
   let lastAccessToken = null;
 
   // Pre-fill code from URL
@@ -53,10 +53,29 @@
       body: JSON.stringify(body)
     });
     const json = await res.json();
-    document.getElementById('result').textContent = JSON.stringify(json, null, 2);
+
+    const resultContainer = document.getElementById('result');
+    resultContainer.innerHTML = '';
+
     if (json.access_token) {
       lastAccessToken = json.access_token;
       document.getElementById('fetch-ids').style.display = 'inline-block';
+
+      const div = document.createElement('div');
+      div.style.padding = '10px';
+      div.style.border = '1px solid #ccc';
+      div.style.borderRadius = '4px';
+      div.innerHTML = `
+        <strong>Access Token:</strong><br>
+        <code>${json.access_token}</code><br><br>
+        <strong>Refresh Token:</strong><br>
+        <code>${json.refresh_token}</code><br><br>
+        <strong>Token Type:</strong> ${json.token_type}<br>
+        <strong>Expires In:</strong> ${json.expires_in} seconds
+      `;
+      resultContainer.appendChild(div);
+    } else {
+      resultContainer.textContent = JSON.stringify(json, null, 2);
     }
   });
 
@@ -96,6 +115,5 @@
     }
   });
 </script>
-
 </body>
 </html>
