@@ -247,6 +247,15 @@
       a.click();
       URL.revokeObjectURL(url);
     });
+
+   
+    window.addEventListener('DOMContentLoaded', () => {
+    const codeParam = new URLSearchParams(window.location.search).get('code');
+    if (codeParam) {
+      document.getElementById('code').value = codeParam;
+    }
+  });
+
   </script>
 </body>
 </html>
