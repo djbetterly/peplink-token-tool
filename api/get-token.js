@@ -30,56 +30,22 @@ export default async function handler(req, res) {
 
     // Prepare headers
     const headers = {
-      "Authorization": `Bearer ${accessToken}`
+      "Authorization": `Bearer ${accessToken}`,
+      "Accept": "application/json"
     };
 
-    // 2️⃣ Get Organizations
+    // 2️⃣ Get Organizations (raw text)
     const orgResponse = await fetch("https://api.ic.peplink.com/api/v2/organizations", {
       headers
     });
-    const orgData = await orgResponse.json();
 
-    if (!orgResponse.ok) {
-      return res.status(orgResponse.status).json({ error: "Error fetching organizations", details: orgData });
-    }
+    const orgText = await orgResponse.text();
 
-    const firstOrgId = orgData.data?.[0]?.id;
-
-    let groupsData = {};
-    let devicesData = {};
-
-    if (firstOrgId) {
-      // 3️⃣ Get Groups
-      const groupsResponse = await fetch(`https://api.ic.peplink.com/api/v2/groups?organization_id=${firstOrgId}`, {
-        headers
-      });
-      groupsData = await groupsResponse.json();
-
-      if (!groupsResponse.ok) {
-        return res.status(groupsResponse.status).json({ error: "Error fetching groups", details: groupsData });
-      }
-
-      const firstGroupId = groupsData.data?.[0]?.id;
-
-      if (firstGroupId) {
-        // 4️⃣ Get Devices
-        const devicesResponse = await fetch(`https://api.ic.peplink.com/api/v2/devices?group_id=${firstGroupId}`, {
-          headers
-        });
-        devicesData = await devicesResponse.json();
-
-        if (!devicesResponse.ok) {
-          return res.status(devicesResponse.status).json({ error: "Error fetching devices", details: devicesData });
-        }
-      }
-    }
-
-    // 5️⃣ Success
-    res.status(200).json({
-      token: tokenData,
-      organizations: orgData,
-      groups: groupsData,
-      devices: devicesData
+    // Always return raw response for inspection
+    res.status(orgResponse.status).json({
+      status: orgResponse.status,
+      statusText: orgResponse.statusText,
+      rawResponse: orgText
     });
 
   } catch (err) {
