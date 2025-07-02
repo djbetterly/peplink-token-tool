@@ -6,28 +6,27 @@
     body { font-family: Arial, sans-serif; }
     code { word-break: break-all; }
     button.copy-btn { margin-left: 10px; font-size: 0.9em; }
+    .section { padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    .device { margin-left: 20px; margin-top: 5px; padding: 5px; border: 1px solid #eee; }
   </style>
 </head>
 <body>
   <h2>Exchange OAuth Code for Token</h2>
-  <p>This page receives your code. Enter your Client ID, Secret, and Redirect URI to get the token.</p>
   <form id="exchange-form">
     <label>Code:</label><br>
-    <input id="code" name="code" style="width:400px;"><br><br>
+    <input id="code" style="width:400px;"><br><br>
     <label>Client ID:</label><br>
-    <input id="client_id" name="client_id" style="width:400px;"><br><br>
+    <input id="client_id" style="width:400px;"><br><br>
     <label>Client Secret:</label><br>
-    <input id="client_secret" name="client_secret" style="width:400px;"><br><br>
+    <input id="client_secret" style="width:400px;"><br><br>
     <label>Redirect URI:</label><br>
-    <input id="redirect_uri" name="redirect_uri" style="width:400px;" value="https://peplink.logic-box.co/callback.html"><br><br>
+    <input id="redirect_uri" style="width:400px;" value="https://peplink.logic-box.co/callback.html"><br><br>
     <button type="submit">Fetch Token</button>
   </form>
   <h3>Token Response:</h3>
   <div id="result"></div>
-
   <button id="export-btn" style="display:none;">Export All Info</button>
-  <button id="fetch-ids" style="display:none;">Fetch Organizations</button>
-
+  <button id="fetch-ids" style="display:none;">Fetch Organizations & Devices</button>
   <h3>Organization Data:</h3>
   <div id="ids-result"></div>
 
@@ -58,15 +57,14 @@
 
     function createDeviceDiv(device) {
       const div = document.createElement('div');
-      div.style.marginLeft = '20px';
-      div.style.marginTop = '5px';
-      div.style.padding = '5px';
-      div.style.border = '1px solid #eee';
-      div.innerHTML = `
-        <strong>Device Name:</strong> ${device.name}<br>
-        <strong>Device ID:</strong> <code>${device.id}</code>
-      `;
-      div.appendChild(createCopyButton(device.id));
+      div.className = 'device';
+      const name = document.createElement('div');
+      name.textContent = `Device Name: ${device.name}`;
+      const id = document.createElement('div');
+      id.textContent = `Device ID: ${device.id}`;
+      id.appendChild(createCopyButton(device.id));
+      div.appendChild(name);
+      div.appendChild(id);
       return div;
     }
 
@@ -95,25 +93,21 @@
         document.getElementById('export-btn').style.display = 'inline-block';
 
         const div = document.createElement('div');
-        div.style.padding = '10px';
-        div.style.border = '1px solid #ccc';
-        div.style.borderRadius = '4px';
+        div.className = 'section';
 
         const accessRow = document.createElement('div');
-        accessRow.innerHTML = `<strong>Access Token:</strong><br><code>${json.access_token}</code>`;
+        accessRow.textContent = `Access Token: ${json.access_token}`;
         accessRow.appendChild(createCopyButton(json.access_token));
 
         const refreshRow = document.createElement('div');
-        refreshRow.style.marginTop = '10px';
-        refreshRow.innerHTML = `<strong>Refresh Token:</strong><br><code>${json.refresh_token}</code>`;
+        refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
         refreshRow.appendChild(createCopyButton(json.refresh_token));
 
         const typeRow = document.createElement('div');
-        typeRow.style.marginTop = '10px';
-        typeRow.innerHTML = `<strong>Token Type:</strong> ${json.token_type}`;
+        typeRow.textContent = `Token Type: ${json.token_type}`;
 
         const expiresRow = document.createElement('div');
-        expiresRow.innerHTML = `<strong>Expires In:</strong> ${json.expires_in} seconds`;
+        expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
 
         div.appendChild(accessRow);
         div.appendChild(refreshRow);
@@ -144,28 +138,35 @@
       if (json.data && Array.isArray(json.data)) {
         for (const org of json.data) {
           const div = document.createElement('div');
-          div.style.padding = '10px';
-          div.style.marginBottom = '10px';
-          div.style.border = '1px solid #ccc';
-          div.style.borderRadius = '4px';
+          div.className = 'section';
 
-          const orgName = `<strong>Organization Name:</strong> ${org.name}<br>`;
+          // Org Name
+          const orgName = document.createElement('div');
+          orgName.textContent = `Organization Name: ${org.name}`;
 
+          // Org ID
           const orgId = document.createElement('div');
-          orgId.innerHTML = `<strong>Organization ID:</strong> <code>${org.id}</code>`;
+          orgId.textContent = `Organization ID: ${org.id}`;
           orgId.appendChild(createCopyButton(org.id));
 
+          // Org Code
           const orgCode = document.createElement('div');
-          orgCode.innerHTML = `<strong>Org Code:</strong> <code>${org.org_code}</code>`;
+          orgCode.textContent = `Org Code: ${org.org_code}`;
           orgCode.appendChild(createCopyButton(org.org_code));
 
-          const status = `<div><strong>Status:</strong> ${org.status}</div>`;
-          const link = `<div><a href="${org.url}" target="_blank">View in InControl</a></div>`;
+          // Status
+          const status = document.createElement('div');
+          status.textContent = `Status: ${org.status}`;
 
-          div.innerHTML = orgName;
+          // Link
+          const link = document.createElement('div');
+          link.innerHTML = `<a href="${org.url}" target="_blank">View in InControl</a>`;
+
+          div.appendChild(orgName);
           div.appendChild(orgId);
           div.appendChild(orgCode);
-          div.insertAdjacentHTML('beforeend', status + link);
+          div.appendChild(status);
+          div.appendChild(link);
 
           // Fetch devices for this org
           const resDevices = await fetch('/api/list-devices', {
@@ -174,7 +175,6 @@
             body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
           });
           const devicesJson = await resDevices.json();
-          console.log("Devices response for org", org.id, devicesJson);
           const devices = [];
 
           if (devicesJson.data && Array.isArray(devicesJson.data)) {
@@ -183,7 +183,6 @@
               div.appendChild(createDeviceDiv(device));
             });
           }
-
 
           allData.orgs.push({ org, devices });
           container.appendChild(div);
