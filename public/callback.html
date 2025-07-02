@@ -2,6 +2,11 @@
 <html>
 <head>
   <title>Peplink OAuth Code Exchange</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    code { word-break: break-all; }
+    button.copy-btn { margin-left: 10px; font-size: 0.9em; }
+  </style>
 </head>
 <body>
   <h2>Exchange OAuth Code for Token</h2>
@@ -18,134 +23,204 @@
     <button type="submit">Fetch Token</button>
   </form>
   <h3>Token Response:</h3>
-  <pre id="result"></pre>
+  <div id="result"></div>
 
-  <button id="fetch-ids" style="display:none;">Fetch Organization / Group / Device IDs</button>
+  <button id="export-btn" style="display:none;">Export All Info</button>
+  <button id="fetch-ids" style="display:none;">Fetch Organizations</button>
+
   <h3>Organization Data:</h3>
-  <pre id="ids-result"></pre>
+  <div id="ids-result"></div>
 
-<script>
-  let lastAccessToken = null;
+  <script>
+    let lastAccessToken = null;
+    let allData = { tokens: {}, orgs: [] };
 
-  // Pre-fill code from URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-  if (code) {
-    document.getElementById('code').value = code;
-  }
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) document.getElementById('code').value = code;
 
-  // Pre-fill stored credentials
-  document.getElementById('client_id').value = localStorage.getItem('peplink_client_id') || '';
-  document.getElementById('client_secret').value = localStorage.getItem('peplink_client_secret') || '';
-  document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || '';
+    document.getElementById('client_id').value = localStorage.getItem('peplink_client_id') || '';
+    document.getElementById('client_secret').value = localStorage.getItem('peplink_client_secret') || '';
+    document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || '';
 
-  function createCopyButton(text) {
-    const btn = document.createElement('button');
-    btn.textContent = 'Copy';
-    btn.style.marginLeft = '10px';
-    btn.style.fontSize = '0.9em';
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      try {
+    function createCopyButton(text) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Copy';
+      btn.className = 'copy-btn';
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
         await navigator.clipboard.writeText(text);
         btn.textContent = 'Copied!';
         setTimeout(() => btn.textContent = 'Copy', 1500);
-      } catch (err) {
-        alert('Copy failed: ' + err);
-      }
-    });
-    return btn;
-  }
+      });
+      return btn;
+    }
 
-  document.getElementById('exchange-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const body = {
-      code: document.getElementById('code').value,
-      client_id: document.getElementById('client_id').value,
-      client_secret: document.getElementById('client_secret').value,
-      redirect_uri: document.getElementById('redirect_uri').value
-    };
-    const res = await fetch('/api/exchange-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const json = await res.json();
-
-    const resultContainer = document.getElementById('result');
-    resultContainer.innerHTML = '';
-
-    if (json.access_token) {
-      lastAccessToken = json.access_token;
-      document.getElementById('fetch-ids').style.display = 'inline-block';
-
+    function createDeviceDiv(device) {
       const div = document.createElement('div');
-      div.style.padding = '10px';
-      div.style.border = '1px solid #ccc';
-      div.style.borderRadius = '4px';
-
-      const accessRow = document.createElement('div');
-      accessRow.innerHTML = `<strong>Access Token:</strong><br><code>${json.access_token}</code>`;
-      accessRow.appendChild(createCopyButton(json.access_token));
-
-      const refreshRow = document.createElement('div');
-      refreshRow.style.marginTop = '10px';
-      refreshRow.innerHTML = `<strong>Refresh Token:</strong><br><code>${json.refresh_token}</code>`;
-      refreshRow.appendChild(createCopyButton(json.refresh_token));
-
-      const typeRow = document.createElement('div');
-      typeRow.style.marginTop = '10px';
-      typeRow.innerHTML = `<strong>Token Type:</strong> ${json.token_type}`;
-
-      const expiresRow = document.createElement('div');
-      expiresRow.innerHTML = `<strong>Expires In:</strong> ${json.expires_in} seconds`;
-
-      div.appendChild(accessRow);
-      div.appendChild(refreshRow);
-      div.appendChild(typeRow);
-      div.appendChild(expiresRow);
-
-      resultContainer.appendChild(div);
-    } else {
-      resultContainer.textContent = JSON.stringify(json, null, 2);
+      div.style.marginLeft = '20px';
+      div.style.marginTop = '5px';
+      div.style.padding = '5px';
+      div.style.border = '1px solid #eee';
+      div.innerHTML = `
+        <strong>Device Name:</strong> ${device.name}<br>
+        <strong>Device ID:</strong> <code>${device.id}</code>
+      `;
+      div.appendChild(createCopyButton(device.id));
+      return div;
     }
-  });
 
-  document.getElementById('fetch-ids').addEventListener('click', async () => {
-    if (!lastAccessToken) {
-      alert('No access token available. Please fetch the token first.');
-      return;
-    }
-    const res = await fetch('/api/list-orgs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_token: lastAccessToken })
-    });
-    const json = await res.json();
+    document.getElementById('exchange-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        code: document.getElementById('code').value,
+        client_id: document.getElementById('client_id').value,
+        client_secret: document.getElementById('client_secret').value,
+        redirect_uri: document.getElementById('redirect_uri').value
+      };
+      const res = await fetch('/api/exchange-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
 
-    const container = document.getElementById('ids-result');
-    container.innerHTML = ''; // Clear previous results
+      const container = document.getElementById('result');
+      container.innerHTML = '';
 
-    if (json.data && Array.isArray(json.data)) {
-      json.data.forEach(org => {
+      if (json.access_token) {
+        lastAccessToken = json.access_token;
+        allData.tokens = json;
+        document.getElementById('fetch-ids').style.display = 'inline-block';
+        document.getElementById('export-btn').style.display = 'inline-block';
+
         const div = document.createElement('div');
         div.style.padding = '10px';
-        div.style.marginBottom = '10px';
         div.style.border = '1px solid #ccc';
         div.style.borderRadius = '4px';
-        div.innerHTML = `
-          <strong>Organization Name:</strong> ${org.name}<br>
-          <strong>Organization ID:</strong> ${org.id}<br>
-          <strong>Org Code:</strong> ${org.org_code}<br>
-          <strong>Status:</strong> ${org.status}<br>
-          <a href="${org.url}" target="_blank">View in InControl</a>
-        `;
+
+        const accessRow = document.createElement('div');
+        accessRow.innerHTML = `<strong>Access Token:</strong><br><code>${json.access_token}</code>`;
+        accessRow.appendChild(createCopyButton(json.access_token));
+
+        const refreshRow = document.createElement('div');
+        refreshRow.style.marginTop = '10px';
+        refreshRow.innerHTML = `<strong>Refresh Token:</strong><br><code>${json.refresh_token}</code>`;
+        refreshRow.appendChild(createCopyButton(json.refresh_token));
+
+        const typeRow = document.createElement('div');
+        typeRow.style.marginTop = '10px';
+        typeRow.innerHTML = `<strong>Token Type:</strong> ${json.token_type}`;
+
+        const expiresRow = document.createElement('div');
+        expiresRow.innerHTML = `<strong>Expires In:</strong> ${json.expires_in} seconds`;
+
+        div.appendChild(accessRow);
+        div.appendChild(refreshRow);
+        div.appendChild(typeRow);
+        div.appendChild(expiresRow);
         container.appendChild(div);
+      } else {
+        container.textContent = JSON.stringify(json, null, 2);
+      }
+    });
+
+    document.getElementById('fetch-ids').addEventListener('click', async () => {
+      if (!lastAccessToken) {
+        alert('No access token available.');
+        return;
+      }
+      const res = await fetch('/api/list-orgs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: lastAccessToken })
       });
-    } else {
-      container.textContent = JSON.stringify(json, null, 2);
-    }
-  });
-</script>
+      const json = await res.json();
+
+      const container = document.getElementById('ids-result');
+      container.innerHTML = '';
+      allData.orgs = [];
+
+      if (json.data && Array.isArray(json.data)) {
+        for (const org of json.data) {
+          const div = document.createElement('div');
+          div.style.padding = '10px';
+          div.style.marginBottom = '10px';
+          div.style.border = '1px solid #ccc';
+          div.style.borderRadius = '4px';
+
+          const orgName = `<strong>Organization Name:</strong> ${org.name}<br>`;
+
+          const orgId = document.createElement('div');
+          orgId.innerHTML = `<strong>Organization ID:</strong> <code>${org.id}</code>`;
+          orgId.appendChild(createCopyButton(org.id));
+
+          const orgCode = document.createElement('div');
+          orgCode.innerHTML = `<strong>Org Code:</strong> <code>${org.org_code}</code>`;
+          orgCode.appendChild(createCopyButton(org.org_code));
+
+          const status = `<div><strong>Status:</strong> ${org.status}</div>`;
+          const link = `<div><a href="${org.url}" target="_blank">View in InControl</a></div>`;
+
+          div.innerHTML = orgName;
+          div.appendChild(orgId);
+          div.appendChild(orgCode);
+          div.insertAdjacentHTML('beforeend', status + link);
+
+          // Fetch devices for this org
+          const resDevices = await fetch('/api/list-devices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
+          });
+          const devicesJson = await resDevices.json();
+          const devices = [];
+
+          if (devicesJson.data && Array.isArray(devicesJson.data)) {
+            devicesJson.data.forEach(group => {
+              if (group.devices && Array.isArray(group.devices)) {
+                group.devices.forEach(device => {
+                  devices.push({ id: device.id, name: device.name });
+                  div.appendChild(createDeviceDiv(device));
+                });
+              }
+            });
+          }
+
+          allData.orgs.push({ org, devices });
+          container.appendChild(div);
+        }
+      } else {
+        container.textContent = JSON.stringify(json, null, 2);
+      }
+    });
+
+    document.getElementById('export-btn').addEventListener('click', () => {
+      let txt = 'Peplink OAuth Information\n\n';
+      txt += 'Tokens:\n';
+      txt += JSON.stringify(allData.tokens, null, 2) + '\n\n';
+      txt += 'Organizations & Devices:\n';
+      allData.orgs.forEach(o => {
+        txt += `Organization: ${o.org.name}\n`;
+        txt += `  Org ID: ${o.org.id}\n`;
+        txt += `  Org Code: ${o.org.org_code}\n`;
+        if (o.devices.length) {
+          o.devices.forEach(d => {
+            txt += `    Device: ${d.name}\n`;
+            txt += `      ID: ${d.id}\n`;
+          });
+        }
+        txt += '\n';
+      });
+
+      const blob = new Blob([txt], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'peplink_info.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
 </body>
 </html>
