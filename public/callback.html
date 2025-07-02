@@ -224,6 +224,54 @@
         container.textContent = JSON.stringify(json, null, 2);
       }
     });
+
+    document.getElementById('export-btn').addEventListener('click', () => {
+    let txt = 'Peplink OAuth Information\n\n';
+    txt += 'Exchange OAuth Code for Token\n\n';
+    txt += `Code: ${document.getElementById('code').value}\n\n`;
+    txt += `Client ID: ${document.getElementById('client_id').value}\n\n`;
+    txt += `Client Secret: ${document.getElementById('client_secret').value}\n\n`;
+    txt += `Redirect URI: ${document.getElementById('redirect_uri').value}\n\n`;
+  
+    txt += 'Token Response:\n';
+    txt += `Access Token: ${allData.tokens.access_token}\n`;
+    txt += `Refresh Token: ${allData.tokens.refresh_token}\n`;
+    txt += `Token Type: ${allData.tokens.token_type}\n`;
+    txt += `Expires In: ${allData.tokens.expires_in} seconds\n\n`;
+  
+    txt += 'Organization Data:\n\n';
+  
+    allData.orgs.forEach(o => {
+      txt += `Organization Name: ${o.org.name}\n`;
+      if (o.group) {
+        txt += `Group Name: ${o.group.name}\n`;
+      }
+      txt += `--\n`;
+      txt += `Organization ID: ${o.org.id}\n`;
+      if (o.group) {
+        txt += `Group ID: ${o.group.id}\n`;
+      }
+      txt += `--\n`;
+      txt += `Status: ${o.org.status}\n`;
+      txt += `InControl URL: ${o.org.url}\n\n`;
+      if (o.devices && o.devices.length) {
+        o.devices.forEach(d => {
+          txt += `  Device Name: ${d.name}\n`;
+          txt += `  Device ID: ${d.id}\n`;
+        });
+      }
+      txt += '\n';
+    });
+  
+    const blob = new Blob([txt], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'peplink_info.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
   </script>
 </body>
 </html>
