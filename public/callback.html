@@ -192,32 +192,45 @@
       }
     });
 
-    document.getElementById('export-btn').addEventListener('click', () => {
-      let txt = 'Peplink OAuth Information\n\n';
-      txt += 'Tokens:\n';
-      txt += JSON.stringify(allData.tokens, null, 2) + '\n\n';
-      txt += 'Organizations & Devices:\n';
-      allData.orgs.forEach(o => {
-        txt += `Organization: ${o.org.name}\n`;
-        txt += `  Org ID: ${o.org.id}\n`;
-        txt += `  Org Code: ${o.org.org_code}\n`;
-        if (o.devices.length) {
-          o.devices.forEach(d => {
-            txt += `    Device: ${d.name}\n`;
-            txt += `      ID: ${d.id}\n`;
-          });
-        }
-        txt += '\n';
+      document.getElementById('export-btn').addEventListener('click', () => {
+        let txt = 'Peplink OAuth Information\n\n';
+        txt += 'Exchange OAuth Code for Token\n\n';
+        txt += `Code: ${document.getElementById('code').value}\n\n`;
+        txt += `Client ID: ${document.getElementById('client_id').value}\n\n`;
+        txt += `Client Secret: ${document.getElementById('client_secret').value}\n\n`;
+        txt += `Redirect URI: ${document.getElementById('redirect_uri').value}\n\n`;
+      
+        txt += 'Token Response:\n';
+        txt += `Access Token: ${allData.tokens.access_token}\n`;
+        txt += `Refresh Token: ${allData.tokens.refresh_token}\n`;
+        txt += `Token Type: ${allData.tokens.token_type}\n`;
+        txt += `Expires In: ${allData.tokens.expires_in} seconds\n\n`;
+      
+        txt += 'Organization Data:\n\n';
+        allData.orgs.forEach(o => {
+          txt += `Organization Name: ${o.org.name}\n`;
+          txt += `Organization ID: ${o.org.id}\n`;
+          txt += `Org Code: ${o.org.org_code}\n`;
+          txt += `Status: ${o.org.status}\n`;
+          txt += `InControl URL: ${o.org.url}\n`;
+          if (o.devices.length) {
+            o.devices.forEach(d => {
+              txt += `  Device Name: ${d.name}\n`;
+              txt += `  Device ID: ${d.id}\n`;
+            });
+          }
+          txt += '\n';
+        });
+      
+        const blob = new Blob([txt], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'peplink_info.txt';
+        a.click();
+        URL.revokeObjectURL(url);
       });
 
-      const blob = new Blob([txt], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'peplink_info.txt';
-      a.click();
-      URL.revokeObjectURL(url);
-    });
   </script>
 </body>
 </html>
