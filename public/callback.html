@@ -25,54 +25,77 @@
   <pre id="ids-result"></pre>
 
   <script>
-    let lastAccessToken = null;
+  let lastAccessToken = null;
 
-    // Pre-fill code from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    if (code) {
-      document.getElementById('code').value = code;
+  // Pre-fill code from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  if (code) {
+    document.getElementById('code').value = code;
+  }
+
+  // Pre-fill stored credentials
+  document.getElementById('client_id').value = localStorage.getItem('peplink_client_id') || '';
+  document.getElementById('client_secret').value = localStorage.getItem('peplink_client_secret') || '';
+  document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || '';
+
+  document.getElementById('exchange-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      code: document.getElementById('code').value,
+      client_id: document.getElementById('client_id').value,
+      client_secret: document.getElementById('client_secret').value,
+      redirect_uri: document.getElementById('redirect_uri').value
+    };
+    const res = await fetch('/api/exchange-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    document.getElementById('result').textContent = JSON.stringify(json, null, 2);
+    if (json.access_token) {
+      lastAccessToken = json.access_token;
+      document.getElementById('fetch-ids').style.display = 'inline-block';
     }
+  });
 
-    // Pre-fill stored credentials
-    document.getElementById('client_id').value = localStorage.getItem('peplink_client_id') || '';
-    document.getElementById('client_secret').value = localStorage.getItem('peplink_client_secret') || '';
-    document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || '';
-
-    document.getElementById('exchange-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const body = {
-        code: document.getElementById('code').value,
-        client_id: document.getElementById('client_id').value,
-        client_secret: document.getElementById('client_secret').value,
-        redirect_uri: document.getElementById('redirect_uri').value
-      };
-      const res = await fetch('/api/exchange-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const json = await res.json();
-      document.getElementById('result').textContent = JSON.stringify(json, null, 2);
-      if (json.access_token) {
-        lastAccessToken = json.access_token;
-        document.getElementById('fetch-ids').style.display = 'inline-block';
-      }
+  document.getElementById('fetch-ids').addEventListener('click', async () => {
+    if (!lastAccessToken) {
+      alert('No access token available. Please fetch the token first.');
+      return;
+    }
+    const res = await fetch('/api/list-orgs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: lastAccessToken })
     });
+    const json = await res.json();
 
-    document.getElementById('fetch-ids').addEventListener('click', async () => {
-      if (!lastAccessToken) {
-        alert('No access token available. Please fetch the token first.');
-        return;
-      }
-      const res = await fetch('/api/list-orgs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: lastAccessToken })
+    const container = document.getElementById('ids-result');
+    container.innerHTML = ''; // Clear previous results
+
+    if (json.data && Array.isArray(json.data)) {
+      json.data.forEach(org => {
+        const div = document.createElement('div');
+        div.style.padding = '10px';
+        div.style.marginBottom = '10px';
+        div.style.border = '1px solid #ccc';
+        div.style.borderRadius = '4px';
+        div.innerHTML = `
+          <strong>Organization Name:</strong> ${org.name}<br>
+          <strong>Organization ID:</strong> ${org.id}<br>
+          <strong>Org Code:</strong> ${org.org_code}<br>
+          <strong>Status:</strong> ${org.status}<br>
+          <a href="${org.url}" target="_blank">View in InControl</a>
+        `;
+        container.appendChild(div);
       });
-      const json = await res.json();
-      document.getElementById('ids-result').textContent = JSON.stringify(json, null, 2);
-    });
-  </script>
+    } else {
+      container.textContent = JSON.stringify(json, null, 2);
+    }
+  });
+</script>
+
 </body>
 </html>
