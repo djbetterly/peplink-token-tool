@@ -147,104 +147,82 @@
           const div = document.createElement('div');
           div.className = 'section';
 
-          const orgName = document.createElement('div');
-          orgName.textContent = `Organization Name: ${org.name}`;
-
-          const orgId = document.createElement('div');
-          orgId.textContent = `Organization ID: ${org.id}`;
-          orgId.appendChild(createCopyButton(org.id));
-
-          const status = document.createElement('div');
-          status.textContent = `Status: ${org.status}`;
-
-          const link = document.createElement('div');
-          link.innerHTML = `<a href="${org.url}" target="_blank">View in InControl</a>`;
-
-          div.appendChild(orgName);
-          div.appendChild(orgId);
-          div.appendChild(status);
-          div.appendChild(link);
-
           // Fetch groups
+          let group = null;
           const resGroups = await fetch('/api/list-groups', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
           });
           const groupsJson = await resGroups.json();
-
           if (groupsJson.data && Array.isArray(groupsJson.data) && groupsJson.data.length > 0) {
-            const group = groupsJson.data[0]; // just the first group
-            const groupId = document.createElement('div');
-            groupId.textContent = `Group ID: ${group.id}`;
-            groupId.appendChild(createCopyButton(group.id));
+            group = groupsJson.data[0]; // Show first group
+          }
 
+          // Org Name
+          const orgName = document.createElement('div');
+          orgName.textContent = `Organization Name: ${org.name}`;
+          div.appendChild(orgName);
+
+          // Group Name
+          if (group) {
             const groupName = document.createElement('div');
             groupName.textContent = `Group Name: ${group.name}`;
-
-            div.appendChild(groupId);
             div.appendChild(groupName);
           }
 
-          // Fetch devices
+          // Separator
+          const sep1 = document.createElement('div');
+          sep1.textContent = '--';
+          div.appendChild(sep1);
+
+          // Org ID
+          const orgId = document.createElement('div');
+          orgId.textContent = `Organization ID: ${org.id}`;
+          orgId.appendChild(createCopyButton(org.id));
+          div.appendChild(orgId);
+
+          // Group ID
+          if (group) {
+            const groupId = document.createElement('div');
+            groupId.textContent = `Group ID: ${group.id}`;
+            groupId.appendChild(createCopyButton(group.id));
+            div.appendChild(groupId);
+          }
+
+          // Separator
+          const sep2 = document.createElement('div');
+          sep2.textContent = '--';
+          div.appendChild(sep2);
+
+          // Status
+          const status = document.createElement('div');
+          status.textContent = `Status: ${org.status}`;
+          div.appendChild(status);
+
+          // Link
+          const link = document.createElement('div');
+          link.innerHTML = `<a href="${org.url}" target="_blank">View in InControl</a>`;
+          div.appendChild(link);
+
+          // Devices
           const resDevices = await fetch('/api/list-devices', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
           });
           const devicesJson = await resDevices.json();
-
-          const devices = [];
           if (devicesJson.data && Array.isArray(devicesJson.data)) {
             devicesJson.data.forEach(device => {
-              devices.push({ id: device.id, name: device.name });
               div.appendChild(createDeviceDiv(device));
             });
           }
 
-          allData.orgs.push({ org, devices });
           container.appendChild(div);
         }
       } else {
         container.textContent = JSON.stringify(json, null, 2);
       }
-    });
-
-    document.getElementById('export-btn').addEventListener('click', () => {
-      let txt = 'Peplink OAuth Information\n\n';
-      txt += 'Exchange OAuth Code for Token\n\n';
-      txt += `Code: ${document.getElementById('code').value}\n\n`;
-      txt += `Client ID: ${document.getElementById('client_id').value}\n\n`;
-      txt += `Client Secret: ${document.getElementById('client_secret').value}\n\n`;
-      txt += `Redirect URI: ${document.getElementById('redirect_uri').value}\n\n`;
-
-      txt += 'Token Response:\n';
-      txt += `Access Token: ${allData.tokens.access_token}\n`;
-      txt += `Refresh Token: ${allData.tokens.refresh_token}\n`;
-      txt += `Token Type: ${allData.tokens.token_type}\n`;
-      txt += `Expires In: ${allData.tokens.expires_in} seconds\n\n`;
-
-      allData.orgs.forEach(o => {
-        txt += `Organization Name: ${o.org.name}\n`;
-        txt += `Organization ID: ${o.org.id}\n`;
-        txt += `Status: ${o.org.status}\n`;
-        txt += `InControl URL: ${o.org.url}\n\n`;
-        if (o.devices.length) {
-          o.devices.forEach(d => {
-            txt += `  Device Name: ${d.name}\n`;
-            txt += `  Device ID: ${d.id}\n`;
-          });
-        }
-        txt += '\n';
-      });
-
-      const blob = new Blob([txt], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'peplink_info.txt';
-      a.click();
-      URL.revokeObjectURL(url);
     });
   </script>
 </body>
