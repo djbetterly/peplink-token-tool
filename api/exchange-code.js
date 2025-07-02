@@ -13,8 +13,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Log exactly what body arrived
-    console.log("DEBUG: Raw body received:", req.body);
+    console.log("==== START ====");
+    console.log("Headers:", req.headers);
+    console.log("Body:", req.body);
+    console.log("==== END ====");
 
     const { client_id, client_secret, redirect_uri, code } = req.body || {};
 
