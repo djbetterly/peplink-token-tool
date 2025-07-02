@@ -39,6 +39,24 @@
   document.getElementById('client_secret').value = localStorage.getItem('peplink_client_secret') || '';
   document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || '';
 
+  function createCopyButton(text) {
+    const btn = document.createElement('button');
+    btn.textContent = 'Copy';
+    btn.style.marginLeft = '10px';
+    btn.style.fontSize = '0.9em';
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 1500);
+      } catch (err) {
+        alert('Copy failed: ' + err);
+      }
+    });
+    return btn;
+  }
+
   document.getElementById('exchange-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = {
@@ -65,14 +83,28 @@
       div.style.padding = '10px';
       div.style.border = '1px solid #ccc';
       div.style.borderRadius = '4px';
-      div.innerHTML = `
-        <strong>Access Token:</strong><br>
-        <code>${json.access_token}</code><br><br>
-        <strong>Refresh Token:</strong><br>
-        <code>${json.refresh_token}</code><br><br>
-        <strong>Token Type:</strong> ${json.token_type}<br>
-        <strong>Expires In:</strong> ${json.expires_in} seconds
-      `;
+
+      const accessRow = document.createElement('div');
+      accessRow.innerHTML = `<strong>Access Token:</strong><br><code>${json.access_token}</code>`;
+      accessRow.appendChild(createCopyButton(json.access_token));
+
+      const refreshRow = document.createElement('div');
+      refreshRow.style.marginTop = '10px';
+      refreshRow.innerHTML = `<strong>Refresh Token:</strong><br><code>${json.refresh_token}</code>`;
+      refreshRow.appendChild(createCopyButton(json.refresh_token));
+
+      const typeRow = document.createElement('div');
+      typeRow.style.marginTop = '10px';
+      typeRow.innerHTML = `<strong>Token Type:</strong> ${json.token_type}`;
+
+      const expiresRow = document.createElement('div');
+      expiresRow.innerHTML = `<strong>Expires In:</strong> ${json.expires_in} seconds`;
+
+      div.appendChild(accessRow);
+      div.appendChild(refreshRow);
+      div.appendChild(typeRow);
+      div.appendChild(expiresRow);
+
       resultContainer.appendChild(div);
     } else {
       resultContainer.textContent = JSON.stringify(json, null, 2);
