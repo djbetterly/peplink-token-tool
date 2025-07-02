@@ -14,11 +14,19 @@
     <label>Client Secret:</label><br>
     <input id="client_secret" name="client_secret" style="width:400px;"><br><br>
     <label>Redirect URI:</label><br>
-    <input id="redirect_uri" name="redirect_uri" style="width:400px;" value="https://peplink.logic-box.co/callback"><br><br>
+    <input id="redirect_uri" name="redirect_uri" style="width:400px;" value="https://peplink.logic-box.co/callback.html"><br><br>
     <button type="submit">Fetch Token</button>
   </form>
+  <h3>Token Response:</h3>
   <pre id="result"></pre>
+
+  <button id="fetch-ids" style="display:none;">Fetch Organization / Group / Device IDs</button>
+  <h3>Organization Data:</h3>
+  <pre id="ids-result"></pre>
+
   <script>
+    let lastAccessToken = null;
+
     // Pre-fill code from URL
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -46,6 +54,24 @@
       });
       const json = await res.json();
       document.getElementById('result').textContent = JSON.stringify(json, null, 2);
+      if (json.access_token) {
+        lastAccessToken = json.access_token;
+        document.getElementById('fetch-ids').style.display = 'inline-block';
+      }
+    });
+
+    document.getElementById('fetch-ids').addEventListener('click', async () => {
+      if (!lastAccessToken) {
+        alert('No access token available. Please fetch the token first.');
+        return;
+      }
+      const res = await fetch('/api/list-orgs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: lastAccessToken })
+      });
+      const json = await res.json();
+      document.getElementById('ids-result').textContent = JSON.stringify(json, null, 2);
     });
   </script>
 </body>
