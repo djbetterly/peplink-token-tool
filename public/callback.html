@@ -5,8 +5,7 @@
   <style>
     body { font-family: Arial, sans-serif; }
     .section { padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
-    .group { margin: 8px 0 8px 20px; padding: 6px; border: 1px solid #eee; }
-    .device { margin: 8px 0 8px 40px; padding: 6px; border: 1px solid #eee; }
+    .device { margin: 8px 0 8px 20px; padding: 6px; border: 1px solid #eee; }
     .copy-btn { margin-left: 8px; font-size: 0.85em; }
   </style>
 </head>
@@ -174,22 +173,17 @@
           });
           const groupsJson = await resGroups.json();
 
-          if (groupsJson.data && Array.isArray(groupsJson.data)) {
-            groupsJson.data.forEach(group => {
-              const groupDiv = document.createElement('div');
-              groupDiv.className = 'group';
+          if (groupsJson.data && Array.isArray(groupsJson.data) && groupsJson.data.length > 0) {
+            const group = groupsJson.data[0]; // just the first group
+            const groupId = document.createElement('div');
+            groupId.textContent = `Group ID: ${group.id}`;
+            groupId.appendChild(createCopyButton(group.id));
 
-              const groupId = document.createElement('div');
-              groupId.textContent = `Group ID: ${group.id}`;
-              groupId.appendChild(createCopyButton(group.id));
+            const groupName = document.createElement('div');
+            groupName.textContent = `Group Name: ${group.name}`;
 
-              const groupName = document.createElement('div');
-              groupName.textContent = `Group Name: ${group.name}`;
-
-              groupDiv.appendChild(groupId);
-              groupDiv.appendChild(groupName);
-              div.appendChild(groupDiv);
-            });
+            div.appendChild(groupId);
+            div.appendChild(groupName);
           }
 
           // Fetch devices
