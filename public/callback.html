@@ -178,15 +178,12 @@
           const devices = [];
 
           if (devicesJson.data && Array.isArray(devicesJson.data)) {
-            devicesJson.data.forEach(group => {
-              if (group.devices && Array.isArray(group.devices)) {
-                group.devices.forEach(device => {
-                  devices.push({ id: device.id, name: device.name });
-                  div.appendChild(createDeviceDiv(device));
-                });
-              }
+            devicesJson.data.forEach(device => {
+              devices.push({ id: device.id, name: device.name });
+              div.appendChild(createDeviceDiv(device));
             });
           }
+
 
           allData.orgs.push({ org, devices });
           container.appendChild(div);
