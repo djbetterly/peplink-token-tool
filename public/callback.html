@@ -19,30 +19,35 @@
     <button type="submit">Fetch Token</button>
   </form>
   <pre id="result"></pre>
-  <script>
-    // Pre-fill code from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    if (code) {
-      document.getElementById('code').value = code;
-    }
+<script>
+  // Pre-fill code from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  if (code) {
+    document.getElementById('code').value = code;
+  }
 
-    document.getElementById('exchange-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const body = {
-        code: document.getElementById('code').value,
-        client_id: document.getElementById('client_id').value,
-        client_secret: document.getElementById('client_secret').value,
-        redirect_uri: document.getElementById('redirect_uri').value
-      };
-      const res = await fetch('/api/exchange-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const json = await res.json();
-      document.getElementById('result').textContent = JSON.stringify(json, null, 2);
+  // Auto-fill credentials saved from index.html
+  document.getElementById('client_id').value = localStorage.getItem('peplink_client_id') || '';
+  document.getElementById('client_secret').value = localStorage.getItem('peplink_client_secret') || '';
+  document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || '';
+
+  document.getElementById('exchange-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      code: document.getElementById('code').value,
+      client_id: document.getElementById('client_id').value,
+      client_secret: document.getElementById('client_secret').value,
+      redirect_uri: document.getElementById('redirect_uri').value
+    };
+    const res = await fetch('/api/exchange-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
     });
-  </script>
+    const json = await res.json();
+    document.getElementById('result').textContent = JSON.stringify(json, null, 2);
+  });
+</script>
 </body>
 </html>
