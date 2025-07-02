@@ -1,31 +1,111 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
   <title>Peplink OAuth Login</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #eee;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #1e1e1e;
+      border: 1px solid #ffcc00;
+      border-radius: 10px;
+      padding: 30px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+    }
+    h2 {
+      color: #ffcc00;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+      color: #ddd;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 5px;
+      background: #333;
+      color: #fff;
+      font-size: 14px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 20px;
+      background: #ffcc00;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #e6b800;
+    }
+    p {
+      text-align: center;
+      font-size: 0.9em;
+      margin-top: 15px;
+      color: #aaa;
+    }
+  </style>
 </head>
 <body>
-  <h2>Login to Peplink and Retrieve API Tokens</h2>
-  <p>Click the button below to log in via Peplink OAuth.</p>
-  <form id="auth-form">
-    <label>Client ID:</label><br>
-    <input id="client_id" name="client_id" style="width:400px;"><br><br>
-    <label>Client Secret:</label><br>
-    <input id="client_secret" name="client_secret" style="width:400px;"><br><br>
-    <label>Redirect URI:</label><br>
-    <input id="redirect_uri" name="redirect_uri" style="width:400px;" value="https://peplink.logic-box.co/callback.html"><br><br>
-    <button type="submit">Start OAuth Login</button>
-  </form>
+  <div class="container">
+    <h2>Peplink OAuth Login</h2>
+    <form id="login-form">
+      <label for="client_id">Client ID:</label>
+      <input type="text" id="client_id" />
+
+      <label for="client_secret">Client Secret:</label>
+      <input type="text" id="client_secret" />
+
+      <label for="redirect_uri">Redirect URI:</label>
+      <input type="text" id="redirect_uri" value="https://peplink.logic-box.co/callback.html" />
+
+      <button type="submit">Start OAuth Login</button>
+    </form>
+    <p>You will be redirected to Peplink to authorize access.</p>
+  </div>
+
   <script>
-    document.getElementById('auth-form').addEventListener('submit', (e) => {
+    document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      const clientId = document.getElementById('client_id').value;
-      const redirectUri = encodeURIComponent(document.getElementById('redirect_uri').value);
-      const authUrl = `https://api.ic.peplink.com/api/oauth2/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=read_device`;
-      // Store Client Secret in localStorage temporarily for callback exchange
-      localStorage.setItem('peplink_client_secret', document.getElementById('client_secret').value);
+      const clientId = document.getElementById('client_id').value.trim();
+      const clientSecret = document.getElementById('client_secret').value.trim();
+      const redirectUri = document.getElementById('redirect_uri').value.trim();
+
+      if (!clientId || !clientSecret || !redirectUri) {
+        alert("Please fill in all fields.");
+        return;
+      }
+
+      // Store in localStorage for callback.html to pre-fill
       localStorage.setItem('peplink_client_id', clientId);
-      localStorage.setItem('peplink_redirect_uri', document.getElementById('redirect_uri').value);
-      window.location.href = authUrl;
+      localStorage.setItem('peplink_client_secret', clientSecret);
+      localStorage.setItem('peplink_redirect_uri', redirectUri);
+
+      // Redirect to Peplink OAuth
+      const url = `https://api.ic.peplink.com/api/oauth2/auth?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      window.location.href = url;
     });
   </script>
 </body>
