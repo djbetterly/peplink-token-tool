@@ -1,33 +1,31 @@
 <!doctype html>
 <html>
 <head>
-  <title>Peplink Token Fetcher</title>
+  <title>Peplink OAuth Login</title>
 </head>
 <body>
-  <h2>Enter Peplink Client Credentials</h2>
-  <form id="form">
+  <h2>Login to Peplink and Retrieve API Tokens</h2>
+  <p>Click the button below to log in via Peplink OAuth.</p>
+  <form id="auth-form">
     <label>Client ID:</label><br>
-    <input name="client_id" style="width:400px;"><br><br>
+    <input id="client_id" name="client_id" style="width:400px;"><br><br>
     <label>Client Secret:</label><br>
-    <input name="client_secret" style="width:400px;"><br><br>
-    <button type="submit">Fetch Tokens</button>
+    <input id="client_secret" name="client_secret" style="width:400px;"><br><br>
+    <label>Redirect URI:</label><br>
+    <input id="redirect_uri" name="redirect_uri" style="width:400px;" value="https://peplink.logic-box.co/api/callback"><br><br>
+    <button type="submit">Start OAuth Login</button>
   </form>
-  <pre id="result"></pre>
   <script>
-    document.getElementById('form').addEventListener('submit', async (e) => {
+    document.getElementById('auth-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      const formData = new FormData(e.target);
-      const body = {
-        client_id: formData.get('client_id'),
-        client_secret: formData.get('client_secret')
-      };
-      const res = await fetch('/api/get-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const json = await res.json();
-      document.getElementById('result').textContent = JSON.stringify(json, null, 2);
+      const clientId = document.getElementById('client_id').value;
+      const redirectUri = encodeURIComponent(document.getElementById('redirect_uri').value);
+      const authUrl = `https://api.ic.peplink.com/api/oauth2/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=read_device`;
+      // Store Client Secret in localStorage temporarily for callback exchange
+      localStorage.setItem('peplink_client_secret', document.getElementById('client_secret').value);
+      localStorage.setItem('peplink_client_id', clientId);
+      localStorage.setItem('peplink_redirect_uri', document.getElementById('redirect_uri').value);
+      window.location.href = authUrl;
     });
   </script>
 </body>
