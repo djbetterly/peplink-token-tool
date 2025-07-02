@@ -74,11 +74,29 @@
     let lastAccessToken = "";
     const allData = { tokens: {}, orgs: [] };
 
+    // Auto-fill Code, Client ID, Client Secret if stored
+    window.addEventListener('DOMContentLoaded', () => {
+      const codeParam = new URLSearchParams(window.location.search).get('code');
+      if (codeParam) {
+        document.getElementById('code').value = codeParam;
+      }
+      if (localStorage.getItem('client_id')) {
+        document.getElementById('client_id').value = localStorage.getItem('client_id');
+      }
+      if (localStorage.getItem('client_secret')) {
+        document.getElementById('client_secret').value = localStorage.getItem('client_secret');
+      }
+    });
+
     document.getElementById('fetch-token').addEventListener('click', async () => {
       const code = document.getElementById('code').value;
       const client_id = document.getElementById('client_id').value;
       const client_secret = document.getElementById('client_secret').value;
       const redirect_uri = document.getElementById('redirect_uri').value;
+
+      // Save Client ID and Secret to localStorage
+      localStorage.setItem('client_id', client_id);
+      localStorage.setItem('client_secret', client_secret);
 
       const res = await fetch('/api/exchange-code', {
         method: 'POST',
@@ -141,7 +159,6 @@
           const div = document.createElement('div');
           div.className = 'section';
 
-          // Org info
           const orgName = document.createElement('div');
           orgName.innerHTML = `<span class="label">Organization Name:</span> ${org.name}`;
 
@@ -247,15 +264,6 @@
       a.click();
       URL.revokeObjectURL(url);
     });
-
-   
-    window.addEventListener('DOMContentLoaded', () => {
-    const codeParam = new URLSearchParams(window.location.search).get('code');
-    if (codeParam) {
-      document.getElementById('code').value = codeParam;
-    }
-  });
-
   </script>
 </body>
 </html>
