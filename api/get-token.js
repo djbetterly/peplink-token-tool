@@ -8,7 +8,8 @@ export default async function handler(req, res) {
 
   const authString = Buffer.from(`${client_id}:${client_secret}`).toString("base64");
 
-  const response = await fetch("https://api.ic.peplink.com/api/oauth2/token", {
+  // 1️⃣ Get Access Token
+  const tokenResponse = await fetch("https://api.ic.peplink.com/api/oauth2/token", {
     method: "POST",
     headers: {
       "Authorization": `Basic ${authString}`,
@@ -17,13 +18,65 @@ export default async function handler(req, res) {
     body: "grant_type=client_credentials"
   });
 
-  const data = await response.json();
+  const tokenData = await tokenResponse.json();
 
-  if (!response.ok) {
-    res.status(response.status).json(data);
-    return;
+  if (!tokenResponse.ok) {
+    return res.status(tokenResponse.status).json(tokenData);
   }
 
-  res.status(200).json(data);
-}
+  const accessToken = tokenData.access_token;
 
+  // Prepare headers for authenticated requests
+  const headers = {
+    "Authorization": `Bearer ${accessToken}`
+  };
+
+  // 2️⃣ Get Organizations
+  const orgResponse = await fetch("https://api.ic.peplink.com/api/v2/organizations", {
+    headers
+  });
+  const orgData = await orgResponse.json();
+
+  if (!orgResponse.ok) {
+    return res.status(orgResponse.status).json({ error: "Error fetching organizations", details: orgData });
+  }
+
+  const firstOrgId = orgData.data?.[0]?.id;
+
+  let groupsData = {};
+  let devicesData = {};
+
+  if (firstOrgId) {
+    // 3️⃣ Get Groups in the first Organization
+    const groupsResponse = await fetch(`https://api.ic.peplink.com/api/v2/groups?organization_id=${firstOrgId}`, {
+      headers
+    });
+    groupsData = await groupsResponse.json();
+
+    if (!groupsResponse.ok) {
+      return res.status(groupsResponse.status).json({ error: "Error fetching groups", details: groupsData });
+    }
+
+    const firstGroupId = groupsData.data?.[0]?.id;
+
+    if (firstGroupId) {
+      // 4️⃣ Get Devices in the first Group
+      const devicesResponse = await fetch(`https://api.ic.peplink.com/api/v2/devices?group_id=${firstGroupId}`, {
+        headers
+      });
+      devicesData = await devicesResponse.json();
+
+      if (!devicesResponse.ok) {
+        return res.status(devicesResponse.status).json({ error: "Error fetching devices", details: devicesData });
+      }
+    }
+  }
+
+  // 5️⃣ Respond with all data
+  res.status(200).json({
+    token: tokenData,
+    organizations: orgData,
+    groups: groupsData,
+    devices: devicesData
+  });
+}
