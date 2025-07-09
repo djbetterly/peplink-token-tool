@@ -158,36 +158,49 @@
       const container = document.getElementById('result');
       container.innerHTML = '';
 
-      if (json.access_token) {
-        lastAccessToken = json.access_token;
-        allData.tokens = json;
-        document.getElementById('fetch-ids').style.display = 'inline-block';
-        document.getElementById('export-btn').style.display = 'inline-block';
-        document.getElementById('send-to-device').style.display = 'inline-block';
+    if (json.access_token) {
+      lastAccessToken = json.access_token;
+      allData.tokens = json;
+    
+      const clientID = document.getElementById('client_id').value;
+      const redirectURI = document.getElementById('redirect_uri').value;
+    
+      document.getElementById('fetch-ids').style.display = 'inline-block';
+      document.getElementById('export-btn').style.display = 'inline-block';
+      document.getElementById('send-to-device').style.display = 'inline-block';
+    
+      const div = document.createElement('div');
+      div.className = 'result-section';
+    
+      const accessRow = document.createElement('div');
+      accessRow.textContent = `Access Token: ${json.access_token}`;
+      accessRow.appendChild(createCopyButton(json.access_token));
+    
+      const refreshRow = document.createElement('div');
+      refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
+      refreshRow.appendChild(createCopyButton(json.refresh_token));
+    
+      const typeRow = document.createElement('div');
+      typeRow.textContent = `Token Type: ${json.token_type}`;
+    
+      const expiresRow = document.createElement('div');
+      expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
+    
+      const reauthLink = document.createElement('div');
+      const code = urlParams.get('code') || 'your-auth-code-here';
+      reauthLink.innerHTML = `
+        <a href="${redirectURI}?code=${code}&client_id=${encodeURIComponent(clientID)}" target="_blank">🔄 Reauthenticate</a>
+      `;
+    
+      div.appendChild(accessRow);
+      div.appendChild(refreshRow);
+      div.appendChild(typeRow);
+      div.appendChild(expiresRow);
+      div.appendChild(reauthLink);
+      container.appendChild(div);
+    }
 
-        const div = document.createElement('div');
-        div.className = 'result-section';
-
-        const accessRow = document.createElement('div');
-        accessRow.textContent = `Access Token: ${json.access_token}`;
-        accessRow.appendChild(createCopyButton(json.access_token));
-
-        const refreshRow = document.createElement('div');
-        refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
-        refreshRow.appendChild(createCopyButton(json.refresh_token));
-
-        const typeRow = document.createElement('div');
-        typeRow.textContent = `Token Type: ${json.token_type}`;
-
-        const expiresRow = document.createElement('div');
-        expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
-
-        div.appendChild(accessRow);
-        div.appendChild(refreshRow);
-        div.appendChild(typeRow);
-        div.appendChild(expiresRow);
-        container.appendChild(div);
-      } else {
+      else {
         container.textContent = JSON.stringify(json, null, 2);
       }
     });
