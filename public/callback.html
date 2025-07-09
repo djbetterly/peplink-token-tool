@@ -92,8 +92,6 @@
   <div id="result"></div>
   <button id="fetch-ids" style="display:none;">Fetch Organizations & Devices</button>
   <button id="export-btn" style="display:none;">Export All Info</button>
-  <button id="send-to-device" style="display:none;">Send to Device</button>
-  <button id="reauth-btn" style="display:none;">Reauthenticate</button>
 
   <h3>Organization Data:</h3>
   <div id="ids-result"></div>
@@ -138,39 +136,32 @@
 
     document.getElementById('exchange-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const body = {
+        code: document.getElementById('code').value,
+        client_id: document.getElementById('client_id').value,
+        client_secret: document.getElementById('client_secret').value,
+        redirect_uri: document.getElementById('redirect_uri').value
+      };
 
-      const clientId = document.getElementById('client_id').value.trim();
-      const clientSecret = document.getElementById('client_secret').value.trim();
-      const redirectUri = document.getElementById('redirect_uri').value.trim();
-      const code = document.getElementById('code').value.trim();
-
-      localStorage.setItem('peplink_client_id', clientId);
-      localStorage.setItem('peplink_client_secret', clientSecret);
-      localStorage.setItem('peplink_redirect_uri', redirectUri);
+      localStorage.setItem('peplink_client_id', body.client_id);
+      localStorage.setItem('peplink_client_secret', body.client_secret);
+      localStorage.setItem('peplink_redirect_uri', body.redirect_uri);
 
       const res = await fetch('/api/exchange-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code,
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: redirectUri
-        })
+        body: JSON.stringify(body)
       });
-
       const json = await res.json();
+
       const container = document.getElementById('result');
       container.innerHTML = '';
 
       if (json.access_token) {
         lastAccessToken = json.access_token;
         allData.tokens = json;
-
         document.getElementById('fetch-ids').style.display = 'inline-block';
         document.getElementById('export-btn').style.display = 'inline-block';
-        document.getElementById('send-to-device').style.display = 'inline-block';
-        document.getElementById('reauth-btn').style.display = 'inline-block';
 
         const div = document.createElement('div');
         div.className = 'result-section';
@@ -199,25 +190,93 @@
       }
     });
 
-    document.getElementById('reauth-btn').addEventListener('click', () => {
-      const clientId = document.getElementById('client_id').value.trim();
-      const redirectUri = document.getElementById('redirect_uri').value.trim();
-      const authURL = `https://api.ic.peplink.com/api/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=readonly`;
-      window.location.href = authURL;
-    });
-
     document.getElementById('fetch-ids').addEventListener('click', async () => {
-      // Same as before; no changes needed.
-    });
+      if (!lastAccessToken) {
+        alert('No access token available.');
+        return;
+      }
 
-    document.getElementById('send-to-device').addEventListener('click', async () => {
-      const res = await fetch('/api/send-to-device', {
+      const res = await fetch('/api/list-orgs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(allData)
+        body: JSON.stringify({ access_token: lastAccessToken })
       });
       const json = await res.json();
-      alert('✅ Sent to device: ' + JSON.stringify(json));
+
+      const container = document.getElementById('ids-result');
+      container.innerHTML = '';
+      allData.orgs = [];
+
+      if (json.data && Array.isArray(json.data)) {
+        for (const org of json.data) {
+          const div = document.createElement('div');
+          div.className = 'result-section';
+
+          const resGroups = await fetch('/api/list-groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
+          });
+          const groupsJson = await resGroups.json();
+          let group = null;
+          if (groupsJson.data && groupsJson.data.length > 0) group = groupsJson.data[0];
+
+          const orgName = document.createElement('div');
+          orgName.textContent = `Organization Name: ${org.name}`;
+          div.appendChild(orgName);
+
+          if (group) {
+            const groupName = document.createElement('div');
+            groupName.textContent = `Group Name: ${group.name}`;
+            div.appendChild(groupName);
+          }
+
+          const sep1 = document.createElement('div');
+          sep1.textContent = '--';
+          div.appendChild(sep1);
+
+          const orgId = document.createElement('div');
+          orgId.textContent = `Organization ID: ${org.id}`;
+          orgId.appendChild(createCopyButton(org.id));
+          div.appendChild(orgId);
+
+          if (group) {
+            const groupId = document.createElement('div');
+            groupId.textContent = `Group ID: ${group.id}`;
+            groupId.appendChild(createCopyButton(group.id));
+            div.appendChild(groupId);
+          }
+
+          const sep2 = document.createElement('div');
+          sep2.textContent = '--';
+          div.appendChild(sep2);
+
+          const status = document.createElement('div');
+          status.textContent = `Status: ${org.status}`;
+          div.appendChild(status);
+
+          const link = document.createElement('div');
+          link.innerHTML = `<a href="${org.url}" target="_blank">View in InControl</a>`;
+          div.appendChild(link);
+
+          const resDevices = await fetch('/api/list-devices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
+          });
+          const devicesJson = await resDevices.json();
+          const devices = [];
+          if (devicesJson.data && Array.isArray(devicesJson.data)) {
+            devicesJson.data.forEach(device => {
+              devices.push({ id: device.id, name: device.name });
+              div.appendChild(createDeviceDiv(device));
+            });
+          }
+
+          allData.orgs.push({ org, group, devices });
+          container.appendChild(div);
+        }
+      }
     });
   </script>
 </body>
