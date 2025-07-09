@@ -93,6 +93,7 @@
   <button id="fetch-ids" style="display:none;">Fetch Organizations & Devices</button>
   <button id="export-btn" style="display:none;">Export All Info</button>
   <button id="send-to-device" style="display:none;">Send to Device</button>
+  <button id="reauth-btn" style="display:none;">Reauthenticate</button>
 
   <h3>Organization Data:</h3>
   <div id="ids-result"></div>
@@ -137,76 +138,76 @@
 
     document.getElementById('exchange-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const body = {
-        code: document.getElementById('code').value,
-        client_id: document.getElementById('client_id').value,
-        client_secret: document.getElementById('client_secret').value,
-        redirect_uri: document.getElementById('redirect_uri').value
-      };
 
-      localStorage.setItem('peplink_client_id', body.client_id);
-      localStorage.setItem('peplink_client_secret', body.client_secret);
-      localStorage.setItem('peplink_redirect_uri', body.redirect_uri);
+      const clientId = document.getElementById('client_id').value.trim();
+      const clientSecret = document.getElementById('client_secret').value.trim();
+      const redirectUri = document.getElementById('redirect_uri').value.trim();
+      const code = document.getElementById('code').value.trim();
+
+      localStorage.setItem('peplink_client_id', clientId);
+      localStorage.setItem('peplink_client_secret', clientSecret);
+      localStorage.setItem('peplink_redirect_uri', redirectUri);
 
       const res = await fetch('/api/exchange-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri
+        })
       });
-      const json = await res.json();
 
+      const json = await res.json();
       const container = document.getElementById('result');
       container.innerHTML = '';
 
-    if (json.access_token) {
-      lastAccessToken = json.access_token;
-      allData.tokens = json;
-    
-      const clientID = document.getElementById('client_id').value;
-      const redirectURI = document.getElementById('redirect_uri').value;
-    
-      document.getElementById('fetch-ids').style.display = 'inline-block';
-      document.getElementById('export-btn').style.display = 'inline-block';
-      document.getElementById('send-to-device').style.display = 'inline-block';
-    
-      const div = document.createElement('div');
-      div.className = 'result-section';
-    
-      const accessRow = document.createElement('div');
-      accessRow.textContent = `Access Token: ${json.access_token}`;
-      accessRow.appendChild(createCopyButton(json.access_token));
-    
-      const refreshRow = document.createElement('div');
-      refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
-      refreshRow.appendChild(createCopyButton(json.refresh_token));
-    
-      const typeRow = document.createElement('div');
-      typeRow.textContent = `Token Type: ${json.token_type}`;
-    
-      const expiresRow = document.createElement('div');
-      expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
-    
-      const reauthLink = document.createElement('div');
-      const code = urlParams.get('code') || 'your-auth-code-here';
-      reauthLink.innerHTML = `
-        <a href="${redirectURI}?code=${code}&client_id=${encodeURIComponent(clientID)}" target="_blank">🔄 Reauthenticate</a>
-      `;
-    
-      div.appendChild(accessRow);
-      div.appendChild(refreshRow);
-      div.appendChild(typeRow);
-      div.appendChild(expiresRow);
-      div.appendChild(reauthLink);
-      container.appendChild(div);
-    }
+      if (json.access_token) {
+        lastAccessToken = json.access_token;
+        allData.tokens = json;
 
-      else {
+        document.getElementById('fetch-ids').style.display = 'inline-block';
+        document.getElementById('export-btn').style.display = 'inline-block';
+        document.getElementById('send-to-device').style.display = 'inline-block';
+        document.getElementById('reauth-btn').style.display = 'inline-block';
+
+        const div = document.createElement('div');
+        div.className = 'result-section';
+
+        const accessRow = document.createElement('div');
+        accessRow.textContent = `Access Token: ${json.access_token}`;
+        accessRow.appendChild(createCopyButton(json.access_token));
+
+        const refreshRow = document.createElement('div');
+        refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
+        refreshRow.appendChild(createCopyButton(json.refresh_token));
+
+        const typeRow = document.createElement('div');
+        typeRow.textContent = `Token Type: ${json.token_type}`;
+
+        const expiresRow = document.createElement('div');
+        expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
+
+        div.appendChild(accessRow);
+        div.appendChild(refreshRow);
+        div.appendChild(typeRow);
+        div.appendChild(expiresRow);
+        container.appendChild(div);
+      } else {
         container.textContent = JSON.stringify(json, null, 2);
       }
     });
 
+    document.getElementById('reauth-btn').addEventListener('click', () => {
+      const clientId = document.getElementById('client_id').value.trim();
+      const redirectUri = document.getElementById('redirect_uri').value.trim();
+      const authURL = `https://api.ic.peplink.com/api/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=readonly`;
+      window.location.href = authURL;
+    });
+
     document.getElementById('fetch-ids').addEventListener('click', async () => {
-      // unchanged from original block
+      // Same as before; no changes needed.
     });
 
     document.getElementById('send-to-device').addEventListener('click', async () => {
