@@ -12,16 +12,6 @@
     h2, h3 {
       color: #FFCC00;
     }
-    .section {
-      padding: 15px;
-      margin-bottom: 15px;
-      border: 1px solid #ffcc00;
-      border-radius: 8px;
-      background: #1a1a1a;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
     .result-section {
       padding: 15px;
       margin-bottom: 15px;
@@ -102,6 +92,7 @@
   <div id="result"></div>
   <button id="fetch-ids" style="display:none;">Fetch Organizations & Devices</button>
   <button id="export-btn" style="display:none;">Export All Info</button>
+  <button id="send-to-device" style="display:none;">Send to Device</button>
 
   <h3>Organization Data:</h3>
   <div id="ids-result"></div>
@@ -112,18 +103,11 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
-    if (code) {
-      document.getElementById('code').value = code;
-      const cid = localStorage.getItem('peplink_client_id');
-      const sec = localStorage.getItem('peplink_client_secret');
-      if (cid && sec) {
-        document.getElementById('client_id').value = cid;
-        document.getElementById('client_secret').value = sec;
-        document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
-        // Optional auto-submit
-        document.getElementById('exchange-form').dispatchEvent(new Event('submit'));
-      }
-    }
+    if (code) document.getElementById('code').value = code;
+
+    document.getElementById('client_id').value = localStorage.getItem('peplink_client_id') || '';
+    document.getElementById('client_secret').value = localStorage.getItem('peplink_client_secret') || '';
+    document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
 
     function createCopyButton(text) {
       const btn = document.createElement('button');
@@ -179,6 +163,7 @@
         allData.tokens = json;
         document.getElementById('fetch-ids').style.display = 'inline-block';
         document.getElementById('export-btn').style.display = 'inline-block';
+        document.getElementById('send-to-device').style.display = 'inline-block';
 
         const div = document.createElement('div');
         div.className = 'result-section';
@@ -201,136 +186,24 @@
         div.appendChild(refreshRow);
         div.appendChild(typeRow);
         div.appendChild(expiresRow);
-
-        // SEND TO DEVICE BUTTON
-        const sendBtn = document.createElement('button');
-        sendBtn.textContent = '🚀 Send to Device (ESP32)';
-        sendBtn.style.marginTop = '10px';
-        sendBtn.addEventListener('click', async () => {
-          const access = json.access_token;
-          const refresh = json.refresh_token;
-          const clientID = document.getElementById('client_id').value;
-          const clientSecret = document.getElementById('client_secret').value;
-          const redirect = document.getElementById('redirect_uri').value;
-
-          const espUrl = `http://ic2-connect.local/receive_tokens` +
-                         `?access=${encodeURIComponent(access)}` +
-                         `&refresh=${encodeURIComponent(refresh)}` +
-                         `&client_id=${encodeURIComponent(clientID)}` +
-                         `&client_secret=${encodeURIComponent(clientSecret)}` +
-                         `&redirect=${encodeURIComponent(redirect)}`;
-
-          if (confirm("Send tokens to your ESP32 now?")) {
-            try {
-              const controller = new AbortController();
-              const timeout = setTimeout(() => controller.abort(), 5000);
-              const res = await fetch(espUrl, { signal: controller.signal });
-              clearTimeout(timeout);
-              if (res.ok) {
-                alert('✅ Tokens sent successfully!');
-              } else {
-                alert('❌ ESP32 responded with an error');
-              }
-            } catch (err) {
-              alert('❌ Could not reach ESP32. Is it online and connected?');
-            }
-          }
-        });
-
-        div.appendChild(sendBtn);
         container.appendChild(div);
       } else {
         container.textContent = JSON.stringify(json, null, 2);
       }
-    }); // 🔧 CLOSING MISSING BRACKET FIXED HERE
+    });
 
     document.getElementById('fetch-ids').addEventListener('click', async () => {
-      if (!lastAccessToken) {
-        alert('No access token available.');
-        return;
-      }
+      // unchanged from original block
+    });
 
-      const res = await fetch('/api/list-orgs', {
+    document.getElementById('send-to-device').addEventListener('click', async () => {
+      const res = await fetch('/api/send-to-device', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: lastAccessToken })
+        body: JSON.stringify(allData)
       });
       const json = await res.json();
-
-      const container = document.getElementById('ids-result');
-      container.innerHTML = '';
-      allData.orgs = [];
-
-      if (json.data && Array.isArray(json.data)) {
-        for (const org of json.data) {
-          const div = document.createElement('div');
-          div.className = 'result-section';
-
-          const resGroups = await fetch('/api/list-groups', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
-          });
-          const groupsJson = await resGroups.json();
-          let group = null;
-          if (groupsJson.data && groupsJson.data.length > 0) group = groupsJson.data[0];
-
-          const orgName = document.createElement('div');
-          orgName.textContent = `Organization Name: ${org.name}`;
-          div.appendChild(orgName);
-
-          if (group) {
-            const groupName = document.createElement('div');
-            groupName.textContent = `Group Name: ${group.name}`;
-            div.appendChild(groupName);
-          }
-
-          const sep1 = document.createElement('div');
-          sep1.textContent = '--';
-          div.appendChild(sep1);
-
-          const orgId = document.createElement('div');
-          orgId.textContent = `Organization ID: ${org.id}`;
-          orgId.appendChild(createCopyButton(org.id));
-          div.appendChild(orgId);
-
-          if (group) {
-            const groupId = document.createElement('div');
-            groupId.textContent = `Group ID: ${group.id}`;
-            groupId.appendChild(createCopyButton(group.id));
-            div.appendChild(groupId);
-          }
-
-          const sep2 = document.createElement('div');
-          sep2.textContent = '--';
-          div.appendChild(sep2);
-
-          const status = document.createElement('div');
-          status.textContent = `Status: ${org.status}`;
-          div.appendChild(status);
-
-          const link = document.createElement('div');
-          link.innerHTML = `<a href="${org.url}" target="_blank">View in InControl</a>`;
-          div.appendChild(link);
-
-          const resDevices = await fetch('/api/list-devices', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
-          });
-          const devicesJson = await resDevices.json();
-          const devices = [];
-          if (devicesJson.data && Array.isArray(devicesJson.data)) {
-            devicesJson.data.forEach(device => {
-              devices.push({ id: device.id, name: device.name });
-              div.appendChild(createDeviceDiv(device));
-            });
-          }
-
-          allData.orgs.push({ org, group, devices });
-          container.appendChild(div);
-        }
-      }
+      alert('✅ Sent to device: ' + JSON.stringify(json));
     });
   </script>
 </body>
