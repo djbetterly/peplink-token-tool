@@ -157,38 +157,62 @@
       const container = document.getElementById('result');
       container.innerHTML = '';
 
-      if (json.access_token) {
-        lastAccessToken = json.access_token;
-        allData.tokens = json;
-        document.getElementById('fetch-ids').style.display = 'inline-block';
-        document.getElementById('export-btn').style.display = 'inline-block';
-
-        const div = document.createElement('div');
-        div.className = 'result-section';
-
-        const accessRow = document.createElement('div');
-        accessRow.textContent = `Access Token: ${json.access_token}`;
-        accessRow.appendChild(createCopyButton(json.access_token));
-
-        const refreshRow = document.createElement('div');
-        refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
-        refreshRow.appendChild(createCopyButton(json.refresh_token));
-
-        const typeRow = document.createElement('div');
-        typeRow.textContent = `Token Type: ${json.token_type}`;
-
-        const expiresRow = document.createElement('div');
-        expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
-
-        div.appendChild(accessRow);
-        div.appendChild(refreshRow);
-        div.appendChild(typeRow);
-        div.appendChild(expiresRow);
-        container.appendChild(div);
-      } else {
-        container.textContent = JSON.stringify(json, null, 2);
+    if (json.access_token) {
+      lastAccessToken = json.access_token;
+      allData.tokens = json;
+      document.getElementById('fetch-ids').style.display = 'inline-block';
+      document.getElementById('export-btn').style.display = 'inline-block';
+    
+      const div = document.createElement('div');
+      div.className = 'result-section';
+    
+      const accessRow = document.createElement('div');
+      accessRow.textContent = `Access Token: ${json.access_token}`;
+      accessRow.appendChild(createCopyButton(json.access_token));
+    
+      const refreshRow = document.createElement('div');
+      refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
+      refreshRow.appendChild(createCopyButton(json.refresh_token));
+    
+      const typeRow = document.createElement('div');
+      typeRow.textContent = `Token Type: ${json.token_type}`;
+    
+      const expiresRow = document.createElement('div');
+      expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
+    
+      div.appendChild(accessRow);
+      div.appendChild(refreshRow);
+      div.appendChild(typeRow);
+      div.appendChild(expiresRow);
+    
+      // 🚀 Inject "Send to Device" button
+      const sendBtn = document.createElement('button');
+      sendBtn.textContent = '🚀 Send to Device (ESP32)';
+      sendBtn.style.marginTop = '10px';
+      sendBtn.addEventListener('click', () => {
+        const access       = json.access_token;
+        const refresh      = json.refresh_token;
+        const clientID     = document.getElementById('client_id').value;
+        const clientSecret = document.getElementById('client_secret').value;
+        const redirect     = document.getElementById('redirect_uri').value;
+    
+        const espUrl = `http://ic2-connect.local/receive_tokens` +
+                       `?access=${encodeURIComponent(access)}` +
+                       `&refresh=${encodeURIComponent(refresh)}` +
+                       `&client_id=${encodeURIComponent(clientID)}` +
+                       `&client_secret=${encodeURIComponent(clientSecret)}` +
+                       `&redirect=${encodeURIComponent(redirect)}`;
+    
+       if (confirm("Send tokens to your ESP32 now?")) {
+        window.location.href = espUrl;
       }
-    });
+      
+      });
+    
+      div.appendChild(sendBtn);
+      container.appendChild(div);
+    }
+
 
     document.getElementById('fetch-ids').addEventListener('click', async () => {
       if (!lastAccessToken) {
