@@ -279,5 +279,27 @@
       }
     });
   </script>
+
+  <script>
+  document.getElementById('reauth-btn').addEventListener('click', () => {
+    const clientId = document.getElementById('client_id').value.trim();
+    const redirectUri = document.getElementById('redirect_uri').value.trim();
+
+    if (!clientId || !redirectUri) {
+      alert('Client ID and Redirect URI must be set.');
+      return;
+    }
+
+    // Store to localStorage so the next page load can reuse
+    localStorage.setItem('peplink_client_id', clientId);
+    localStorage.setItem('peplink_redirect_uri', redirectUri);
+
+    const authURL = `https://api.ic.peplink.com/api/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=readonly`;
+
+    console.log("Redirecting to:", authURL);
+    window.location.href = authURL;
+  });
+</script>
+
 </body>
 </html>
