@@ -68,6 +68,10 @@
     button:hover {
       background: #ffe066;
     }
+    a {
+      color: #FFCC00;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -80,47 +84,72 @@
     <label>Client Secret:</label><br>
     <input id="client_secret"><br><br>
     <label>Redirect URI:</label><br>
-    <input id="redirect_uri" value=""><br><br>
+    <input id="redirect_uri" value="https://peplink.logic-box.co/callback.html"><br><br>
     <button type="submit">Fetch Token</button>
-    <button type="button" id="reauth-btn">Reauthenticate</button>
   </form>
 
   <h3>Token Response:</h3>
   <div id="result"></div>
+  <button id="fetch-ids" style="display:none;">Fetch Organizations & Devices</button>
+  <button id="export-btn" style="display:none;">Export All Info</button>
+
+  <h3>Organization Data:</h3>
+  <div id="ids-result"></div>
 
   <script>
     let lastAccessToken = null;
+    let allData = { tokens: {}, orgs: [] };
 
-    window.onload = () => {
-      const params = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    if (code) document.getElementById('code').value = code;
 
-      const code = params.get('code');
-      const clientId = params.get('client_id');
-      const clientSecret = params.get('client_secret');
-      const redirectUri = window.location.origin + window.location.pathname;
+    // Fallbacks from localStorage
+    let storedClientId = localStorage.getItem('peplink_client_id') || '';
+    let storedClientSecret = localStorage.getItem('peplink_client_secret') || '';
 
-      if (code) document.getElementById('code').value = code;
-      if (clientId) document.getElementById('client_id').value = clientId;
-      if (clientSecret) document.getElementById('client_secret').value = clientSecret;
-      document.getElementById('redirect_uri').value = redirectUri;
+    // Parse state param if present
+    if (state) {
+      try {
+        const decoded = atob(state);
+        const parsed = JSON.parse(decoded);
+        if (parsed.client_id) storedClientId = parsed.client_id;
+        if (parsed.client_secret) storedClientSecret = parsed.client_secret;
+      } catch (e) {
+        console.error('Failed to parse state param:', e);
+      }
+    }
 
-      document.getElementById('reauth-btn').addEventListener('click', () => {
-        const cid = document.getElementById('client_id').value.trim();
-        const secret = document.getElementById('client_secret').value.trim();
-        const redir = document.getElementById('redirect_uri').value.trim();
+    document.getElementById('client_id').value = storedClientId;
+    document.getElementById('client_secret').value = storedClientSecret;
+    document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
 
-        if (!cid || !secret || !redir) {
-          alert('Client ID, Client Secret, and Redirect URI must be filled out.');
-          return;
-        }
-
-        const fullRedirect = `${redir}?client_id=${encodeURIComponent(cid)}&client_secret=${encodeURIComponent(secret)}`;
-        const authURL = `https://api.ic.peplink.com/api/oauth2/authorize?client_id=${cid}&response_type=code&redirect_uri=${encodeURIComponent(fullRedirect)}&scope=readonly`;
-
-        console.log("Redirecting to:", authURL);
-        window.location.href = authURL;
+    function createCopyButton(text) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Copy';
+      btn.className = 'copy-btn';
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 1500);
       });
-    };
+      return btn;
+    }
+
+    function createDeviceDiv(device) {
+      const div = document.createElement('div');
+      div.className = 'device';
+      const name = document.createElement('div');
+      name.textContent = `Device Name: ${device.name}`;
+      const id = document.createElement('div');
+      id.textContent = `Device ID: ${device.id}`;
+      id.appendChild(createCopyButton(device.id));
+      div.appendChild(name);
+      div.appendChild(id);
+      return div;
+    }
 
     document.getElementById('exchange-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -130,6 +159,10 @@
         client_secret: document.getElementById('client_secret').value,
         redirect_uri: document.getElementById('redirect_uri').value
       };
+
+      localStorage.setItem('peplink_client_id', body.client_id);
+      localStorage.setItem('peplink_client_secret', body.client_secret);
+      localStorage.setItem('peplink_redirect_uri', body.redirect_uri);
 
       const res = await fetch('/api/exchange-code', {
         method: 'POST',
@@ -143,15 +176,20 @@
 
       if (json.access_token) {
         lastAccessToken = json.access_token;
+        allData.tokens = json;
+        document.getElementById('fetch-ids').style.display = 'inline-block';
+        document.getElementById('export-btn').style.display = 'inline-block';
 
         const div = document.createElement('div');
         div.className = 'result-section';
 
         const accessRow = document.createElement('div');
         accessRow.textContent = `Access Token: ${json.access_token}`;
+        accessRow.appendChild(createCopyButton(json.access_token));
 
         const refreshRow = document.createElement('div');
         refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
+        refreshRow.appendChild(createCopyButton(json.refresh_token));
 
         const typeRow = document.createElement('div');
         typeRow.textContent = `Token Type: ${json.token_type}`;
