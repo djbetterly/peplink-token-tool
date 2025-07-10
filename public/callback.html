@@ -163,6 +163,9 @@
 
     document.getElementById('exchange-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      console.log("🔄 Starting token exchange with Peplink API...");
+      
       const formData = {
         code: document.getElementById('code').value,
         client_id: document.getElementById('client_id').value,
@@ -171,55 +174,72 @@
         grant_type: 'authorization_code'
       };
 
+      console.log("📋 Form data:", {
+        code: formData.code.substring(0, 8) + "...",
+        client_id: formData.client_id.substring(0, 8) + "...",
+        redirect_uri: formData.redirect_uri
+      });
+
       localStorage.setItem('peplink_client_id', formData.client_id);
       localStorage.setItem('peplink_client_secret', formData.client_secret);
       localStorage.setItem('peplink_redirect_uri', formData.redirect_uri);
       localStorage.setItem('peplink_esp_ip', document.getElementById('esp_ip').value);
       localStorage.setItem('peplink_esp_page', document.getElementById('esp_page').value);
 
-      // Direct exchange with Peplink API
-      const res = await fetch('https://api.ic.peplink.com/api/oauth2/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(formData)
-      });
-      
-      const json = await res.json();
+      try {
+        // Direct exchange with Peplink API
+        console.log("🎯 Calling Peplink token endpoint...");
+        const res = await fetch('https://api.ic.peplink.com/api/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(formData)
+        });
+        
+        console.log("📈 Response status:", res.status);
+        const json = await res.json();
+        console.log("📦 Response data:", json);
 
-      const container = document.getElementById('result');
-      container.innerHTML = '';
+        const container = document.getElementById('result');
+        container.innerHTML = '';
 
-      if (json.access_token) {
-        lastAccessToken = json.access_token;
-        allData.tokens = json;
-        document.getElementById('fetch-ids').style.display = 'inline-block';
-        document.getElementById('export-btn').style.display = 'inline-block';
-        document.getElementById('send-esp').style.display = 'inline-block';
+        if (json.access_token) {
+          lastAccessToken = json.access_token;
+          allData.tokens = json;
+          document.getElementById('fetch-ids').style.display = 'inline-block';
+          document.getElementById('export-btn').style.display = 'inline-block';
+          document.getElementById('send-esp').style.display = 'inline-block';
 
-        const div = document.createElement('div');
-        div.className = 'result-section';
+          const div = document.createElement('div');
+          div.className = 'result-section';
 
-        const accessRow = document.createElement('div');
-        accessRow.textContent = `Access Token: ${json.access_token}`;
-        accessRow.appendChild(createCopyButton(json.access_token));
+          const accessRow = document.createElement('div');
+          accessRow.textContent = `Access Token: ${json.access_token}`;
+          accessRow.appendChild(createCopyButton(json.access_token));
 
-        const refreshRow = document.createElement('div');
-        refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
-        refreshRow.appendChild(createCopyButton(json.refresh_token));
+          const refreshRow = document.createElement('div');
+          refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
+          refreshRow.appendChild(createCopyButton(json.refresh_token));
 
-        const typeRow = document.createElement('div');
-        typeRow.textContent = `Token Type: ${json.token_type}`;
+          const typeRow = document.createElement('div');
+          typeRow.textContent = `Token Type: ${json.token_type}`;
 
-        const expiresRow = document.createElement('div');
-        expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
+          const expiresRow = document.createElement('div');
+          expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
 
-        div.appendChild(accessRow);
-        div.appendChild(refreshRow);
-        div.appendChild(typeRow);
-        div.appendChild(expiresRow);
-        container.appendChild(div);
-      } else {
-        container.textContent = JSON.stringify(json, null, 2);
+          div.appendChild(accessRow);
+          div.appendChild(refreshRow);
+          div.appendChild(typeRow);
+          div.appendChild(expiresRow);
+          container.appendChild(div);
+          
+          console.log("✅ Token exchange successful!");
+        } else {
+          console.error("❌ No access token in response:", json);
+          container.textContent = JSON.stringify(json, null, 2);
+        }
+      } catch (error) {
+        console.error("🚨 Token exchange error:", error);
+        document.getElementById('result').textContent = `Error: ${error.message}`;
       }
     });
 
