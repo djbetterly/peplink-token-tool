@@ -183,6 +183,9 @@
         document.getElementById('export-btn').style.display = 'inline-block';
         document.getElementById('copy-tokens').style.display = 'inline-block';
         document.getElementById('copy-payload').style.display = 'inline-block';
+        
+        // Add event listeners after buttons are shown
+        setupCopyButtons();
 
         const div = document.createElement('div');
         div.className = 'result-section';
