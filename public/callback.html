@@ -84,7 +84,7 @@
     <label>Client Secret:</label><br>
     <input id="client_secret"><br><br>
     <label>Redirect URI:</label><br>
-    <input id="redirect_uri" value="https://peplink.logic-box.co/callback.html"><br><br>
+    <input id="redirect_uri" value="http://peplink.logic-box.co/callback.html"><br><br>
     <label>ESP IP Address:</label><br>
     <input id="esp_ip" value="192.168.112.111" placeholder="192.168.1.100"><br><br>
     <label>ESP Page Path:</label><br>
@@ -321,10 +321,25 @@
 
     // ESP functionality from callback(2)
     document.getElementById('send-esp').addEventListener('click', async () => {
+      console.log("🔄 Send to ESP button clicked");
+      
       if (!allData.tokens.access_token || !allData.tokens.refresh_token || !allData.tokens.token_type) {
         alert("Token data missing or invalid.");
+        console.error("❌ Missing token data:", allData.tokens);
         return;
       }
+
+      const espIp = document.getElementById('esp_ip').value;
+      const espPage = document.getElementById('esp_page').value;
+      
+      console.log("📡 ESP Target:", espIp, espPage);
+      console.log("🔑 Token data:", {
+        access: allData.tokens.access_token?.substring(0, 8) + "...",
+        refresh: allData.tokens.refresh_token?.substring(0, 8) + "...",
+        org_id: firstOrgId,
+        group_id: firstGroupId,
+        device_id: firstDeviceId
+      });
 
       const payload = {
         access: allData.tokens.access_token,
@@ -337,21 +352,33 @@
         device_id: firstDeviceId
       };
 
-      const espIp = document.getElementById('esp_ip').value;
-      const res = await fetch(`http://${espIp}/receive_tokens`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const targetUrl = `http://${espIp}/receive_tokens`;
+      console.log("🎯 Sending to:", targetUrl);
+      console.log("📦 Payload:", payload);
 
-      if (res.ok) {
-        const espIp = document.getElementById('esp_ip').value;
-        const espPage = document.getElementById('esp_page').value;
-        alert(`✅ Sent to ESP successfully! You can now visit http://${espIp}${espPage} to see the updated tokens.`);
-      } else {
-        alert("❌ Failed to send to ESP.");
+      try {
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        console.log("📈 Response status:", res.status);
+        console.log("📋 Response headers:", Object.fromEntries(res.headers.entries()));
+        
+        const responseText = await res.text();
+        console.log("📄 Response body:", responseText);
+
+        if (res.ok) {
+          alert(`✅ Sent to ESP successfully! You can now visit http://${espIp}${espPage} to see the updated tokens.`);
+        } else {
+          alert(`❌ Failed to send to ESP. Status: ${res.status}\n\nCheck console for details.`);
+        }
+      } catch (error) {
+        console.error("🚨 Fetch error:", error);
+        alert(`❌ Network error: ${error.message}\n\nMake sure ESP is accessible at http://${espIp}`);
       }
     });
   </script>
