@@ -123,19 +123,21 @@
       }
     }
 
-    document.getElementById('client_id').value = storedClientId;
-    document.getElementById('client_secret').value = storedClientSecret;
-    document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
-
     function createCopyButton(text) {
       const btn = document.createElement('button');
       btn.textContent = 'Copy';
       btn.className = 'copy-btn';
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
-        await navigator.clipboard.writeText(text);
-        btn.textContent = 'Copied!';
-        setTimeout(() => btn.textContent = 'Copy', 1500);
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = 'Copied!';
+          setTimeout(() => btn.textContent = 'Copy', 1500);
+        } catch (error) {
+          console.error('Copy failed:', error);
+          btn.textContent = 'Failed';
+          setTimeout(() => btn.textContent = 'Copy', 1500);
+        }
       });
       return btn;
     }
@@ -153,7 +155,32 @@
       return div;
     }
 
-    document.getElementById('exchange-form').addEventListener('submit', async (e) => {
+    document.getElementById('client_id').value = storedClientId;
+    document.getElementById('client_secret').value = storedClientSecret;
+    document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
+
+    // Wait for DOM to be fully loaded before setting up form listeners
+    document.addEventListener('DOMContentLoaded', function() {
+      setupFormListeners();
+    });
+
+    // If DOM is already loaded, set up immediately
+    if (document.readyState === 'loading') {
+      // Still loading, wait for DOMContentLoaded
+    } else {
+      // Already loaded
+      setupFormListeners();
+    }
+
+    function setupFormListeners() {
+      // Only set up the form submission listener initially
+      const exchangeForm = document.getElementById('exchange-form');
+      if (exchangeForm) {
+        exchangeForm.addEventListener('submit', handleFormSubmission);
+      }
+    }
+
+    async function handleFormSubmission(e) {
       e.preventDefault();
       const body = {
         code: document.getElementById('code').value,
@@ -184,8 +211,67 @@
         document.getElementById('copy-tokens').style.display = 'inline-block';
         document.getElementById('copy-payload').style.display = 'inline-block';
         
-        // Add event listeners after buttons are shown
-        setupCopyButtons();
+        // Add ALL event listeners after buttons are shown
+        setupAllButtonListeners();
+
+        const div = document.createElement('div');
+        div.className = 'result-section';
+
+        const accessRow = document.createElement('div');
+        accessRow.textContent = `Access Token: ${json.access_token}`;
+        accessRow.appendChild(createCopyButton(json.access_token));
+
+        const refreshRow = document.createElement('div');
+        refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
+        refreshRow.appendChild(createCopyButton(json.refresh_token));
+
+        const typeRow = document.createElement('div');
+        typeRow.textContent = `Token Type: ${json.token_type}`;
+
+        const expiresRow = document.createElement('div');
+        expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
+
+        div.appendChild(accessRow);
+        div.appendChild(refreshRow);
+        div.appendChild(typeRow);
+        div.appendChild(expiresRow);
+        container.appendChild(div);
+      } else {
+        container.textContent = JSON.stringify(json, null, 2);
+      }
+    }
+      e.preventDefault();
+      const body = {
+        code: document.getElementById('code').value,
+        client_id: document.getElementById('client_id').value,
+        client_secret: document.getElementById('client_secret').value,
+        redirect_uri: document.getElementById('redirect_uri').value
+      };
+
+      localStorage.setItem('peplink_client_id', body.client_id);
+      localStorage.setItem('peplink_client_secret', body.client_secret);
+      localStorage.setItem('peplink_redirect_uri', body.redirect_uri);
+
+      const res = await fetch('/api/exchange-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+
+      const container = document.getElementById('result');
+      container.innerHTML = '';
+
+      if (json.access_token) {
+        lastAccessToken = json.access_token;
+        allData.tokens = json;
+        document.getElementById('fetch-ids').style.display = 'inline-block';
+        document.getElementById('export-btn').style.display = 'inline-block';
+        document.getElementById('copy-tokens').style.display = 'inline-block';
+        document.getElementById('copy-payload').style.display = 'inline-block';
+        
+        // Add ALL event listeners after buttons are shown
+        setupAllButtonListeners();
 
         const div = document.createElement('div');
         div.className = 'result-section';
