@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>Peplink OAuth Callback</title>
+  <title>Peplink OAuth Code Exchange</title>
   <style>
     body {
       background: #000;
@@ -12,23 +12,36 @@
     h2, h3 {
       color: #FFCC00;
     }
-    .section {
-      margin-bottom: 20px;
-    }
     .result-section {
       padding: 15px;
       margin-bottom: 15px;
       border: 1px solid #ffcc00;
       border-radius: 8px;
       background: #1a1a1a;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
     .device {
-      margin: 6px 0 6px 20px;
+      margin: 8px 0 8px 20px;
       padding: 6px;
       border: 1px solid #333;
       background: #000;
       color: #fff;
       border-radius: 4px;
+    }
+    .copy-btn {
+      margin-left: 10px;
+      padding: 4px 10px;
+      font-size: 0.85em;
+      background: #ffcc00;
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      background: #e6b800;
     }
     label {
       font-weight: bold;
@@ -55,191 +68,278 @@
     button:hover {
       background: #ffe066;
     }
-    .copy-btn {
-      margin-left: 10px;
-      padding: 3px 8px;
-      font-size: 0.85em;
-      background: #ffcc00;
-      color: #000;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+    a {
+      color: #FFCC00;
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
+  <h2>Exchange OAuth Code for Token</h2>
+  <form id="exchange-form" class="section">
+    <label>Code:</label><br>
+    <input id="code"><br><br>
+    <label>Client ID:</label><br>
+    <input id="client_id"><br><br>
+    <label>Client Secret:</label><br>
+    <input id="client_secret"><br><br>
+    <label>Redirect URI:</label><br>
+    <input id="redirect_uri" value="https://peplink.logic-box.co/callback.html"><br><br>
+    <button type="submit">Fetch Token</button>
+  </form>
 
-<h2>Peplink OAuth Information</h2>
+  <h3>Token Response:</h3>
+  <div id="result"></div>
+  <button id="fetch-ids" style="display:none;">Fetch Organizations & Devices</button>
+  <button id="export-btn" style="display:none;">Export All Info</button>
+  <button id="send-esp" style="display:none;">Send to ESP</button>
 
-<div id="token-section" class="section">
-  <div><strong>Exchanging code for token...</strong></div>
-</div>
+  <h3>Organization Data:</h3>
+  <div id="ids-result"></div>
 
-<div id="org-section" class="section" style="display:none;">
-  <h3>Organizations & Devices</h3>
-  <div id="org-container"></div>
-  <button id="send-to-esp">Send to ESP</button>
-</div>
+  <script>
+    let lastAccessToken = null;
+    let allData = { tokens: {}, orgs: [] };
+    let firstOrgId = null, firstGroupId = null, firstDeviceId = null;
 
-<script>
-  let accessToken = "";
-  let refreshToken = "";
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    if (code) document.getElementById('code').value = code;
 
-  function copyButton(text) {
-    const btn = document.createElement('button');
-    btn.textContent = 'Copy';
-    btn.className = 'copy-btn';
-    btn.onclick = async () => {
-      await navigator.clipboard.writeText(text);
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 1200);
-    };
-    return btn;
-  }
+    // Handle state parameter for reauthorization
+    let storedClientId = localStorage.getItem('peplink_client_id') || '';
+    let storedClientSecret = localStorage.getItem('peplink_client_secret') || '';
 
-  async function exchangeCodeForToken(code, clientId, clientSecret, redirectUri) {
-    const res = await fetch('https://api.ic.peplink.com/api/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri
-      })
-    });
-
-    return res.ok ? await res.json() : null;
-  }
-
-  async function fetchOrgsAndDevices(token) {
-    const container = document.getElementById('org-container');
-    container.innerHTML = "";
-
-    const orgRes = await fetch('https://api.ic.peplink.com/api/my/organizations', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const orgs = await orgRes.json();
-
-    for (const org of orgs.data || []) {
-      const orgDiv = document.createElement('div');
-      orgDiv.className = 'result-section';
-
-      const orgName = document.createElement('div');
-      orgName.innerHTML = `<strong>Org:</strong> ${org.name}`;
-      orgDiv.appendChild(orgName);
-
-      const orgId = document.createElement('div');
-      orgId.innerHTML = `Organization ID: ${org.id}`;
-      orgId.appendChild(copyButton(org.id));
-      orgDiv.appendChild(orgId);
-
-      // Fetch groups
-      const groupRes = await fetch(`https://api.ic.peplink.com/api/organizations/${org.id}/groups`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const groups = await groupRes.json();
-
-      for (const group of groups.data || []) {
-        const groupName = document.createElement('div');
-        groupName.innerHTML = `Group Name: ${group.name}`;
-        orgDiv.appendChild(groupName);
-
-        const groupId = document.createElement('div');
-        groupId.innerHTML = `Group ID: ${group.id}`;
-        groupId.appendChild(copyButton(group.id));
-        orgDiv.appendChild(groupId);
-
-        // Fetch devices
-        const deviceRes = await fetch(`https://api.ic.peplink.com/api/groups/${group.id}/devices`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const devices = await deviceRes.json();
-
-        for (const device of devices.data || []) {
-          const devDiv = document.createElement('div');
-          devDiv.className = 'device';
-          devDiv.innerHTML = `<strong>${device.name}</strong><br>Device ID: ${device.id}`;
-          devDiv.appendChild(copyButton(device.id));
-          orgDiv.appendChild(devDiv);
-        }
+    if (state) {
+      try {
+        const decoded = atob(decodeURIComponent(state));
+        const parsed = JSON.parse(decoded);
+        if (parsed.client_id) storedClientId = parsed.client_id;
+        if (parsed.client_secret) storedClientSecret = parsed.client_secret;
+      } catch (e) {
+        console.error('Failed to parse state param:', e);
       }
-
-      container.appendChild(orgDiv);
     }
-  }
 
-  // Send token back to ESP
-  document.getElementById('send-to-esp').addEventListener('click', async () => {
-    const espUrl = "/auth_peplink";
-    const payload = { access_token: accessToken, refresh_token: refreshToken };
+    document.getElementById('client_id').value = storedClientId;
+    document.getElementById('client_secret').value = storedClientSecret;
+    document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
 
-    const res = await fetch(espUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    function createCopyButton(text) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Copy';
+      btn.className = 'copy-btn';
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 1500);
+      });
+      return btn;
+    }
+
+    function createDeviceDiv(device) {
+      const div = document.createElement('div');
+      div.className = 'device';
+      const name = document.createElement('div');
+      name.textContent = `Device Name: ${device.name}`;
+      const id = document.createElement('div');
+      id.textContent = `Device ID: ${device.id}`;
+      id.appendChild(createCopyButton(device.id));
+      div.appendChild(name);
+      div.appendChild(id);
+      return div;
+    }
+
+    document.getElementById('exchange-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        code: document.getElementById('code').value,
+        client_id: document.getElementById('client_id').value,
+        client_secret: document.getElementById('client_secret').value,
+        redirect_uri: document.getElementById('redirect_uri').value
+      };
+
+      localStorage.setItem('peplink_client_id', body.client_id);
+      localStorage.setItem('peplink_client_secret', body.client_secret);
+      localStorage.setItem('peplink_redirect_uri', body.redirect_uri);
+
+      const res = await fetch('/api/exchange-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+
+      const container = document.getElementById('result');
+      container.innerHTML = '';
+
+      if (json.access_token) {
+        lastAccessToken = json.access_token;
+        allData.tokens = json;
+        document.getElementById('fetch-ids').style.display = 'inline-block';
+        document.getElementById('export-btn').style.display = 'inline-block';
+        document.getElementById('send-esp').style.display = 'inline-block';
+
+        const div = document.createElement('div');
+        div.className = 'result-section';
+
+        const accessRow = document.createElement('div');
+        accessRow.textContent = `Access Token: ${json.access_token}`;
+        accessRow.appendChild(createCopyButton(json.access_token));
+
+        const refreshRow = document.createElement('div');
+        refreshRow.textContent = `Refresh Token: ${json.refresh_token}`;
+        refreshRow.appendChild(createCopyButton(json.refresh_token));
+
+        const typeRow = document.createElement('div');
+        typeRow.textContent = `Token Type: ${json.token_type}`;
+
+        const expiresRow = document.createElement('div');
+        expiresRow.textContent = `Expires In: ${json.expires_in} seconds`;
+
+        div.appendChild(accessRow);
+        div.appendChild(refreshRow);
+        div.appendChild(typeRow);
+        div.appendChild(expiresRow);
+        container.appendChild(div);
+      } else {
+        container.textContent = JSON.stringify(json, null, 2);
+      }
     });
 
-    alert(res.ok ? "✅ Tokens sent to ESP!" : "❌ Failed to send to ESP.");
-  });
-
-  // Main flow
-  (async () => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const state = params.get("state");
-
-    if (!code || !state) {
-      document.getElementById("token-section").innerHTML = "<strong>Missing code or state in URL.</strong>";
-      return;
-    }
-
-    try {
-      const decodedState = JSON.parse(atob(decodeURIComponent(state)));
-      const clientId = decodedState.client_id;
-      const clientSecret = decodedState.client_secret;
-      const redirectUri = "https://peplink.logic-box.co/callback.html";
-
-      const tokenData = await exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
-
-      if (!tokenData || !tokenData.access_token) {
-        document.getElementById("token-section").innerHTML = "<strong>Token exchange failed.</strong>";
+    // Use callback(1) comprehensive polling approach
+    document.getElementById('fetch-ids').addEventListener('click', async () => {
+      if (!lastAccessToken) {
+        alert('No access token available.');
         return;
       }
 
-      accessToken = tokenData.access_token;
-      refreshToken = tokenData.refresh_token;
+      const res = await fetch('/api/list-orgs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: lastAccessToken })
+      });
+      const json = await res.json();
 
-      // Display token info
-      const section = document.getElementById("token-section");
-      section.innerHTML = "";
-      const div = document.createElement("div");
-      div.className = "result-section";
+      const container = document.getElementById('ids-result');
+      container.innerHTML = '';
+      allData.orgs = [];
 
-      const at = document.createElement("div");
-      at.textContent = `Access Token: ${accessToken}`;
-      at.appendChild(copyButton(accessToken));
-      div.appendChild(at);
+      if (json.data && Array.isArray(json.data)) {
+        for (const org of json.data) {
+          // Set first org ID for ESP functionality
+          if (!firstOrgId) firstOrgId = org.id;
 
-      const rt = document.createElement("div");
-      rt.textContent = `Refresh Token: ${refreshToken}`;
-      rt.appendChild(copyButton(refreshToken));
-      div.appendChild(rt);
+          const div = document.createElement('div');
+          div.className = 'result-section';
 
-      div.appendChild(document.createElement("hr"));
-      section.appendChild(div);
+          const resGroups = await fetch('/api/list-groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
+          });
+          const groupsJson = await resGroups.json();
+          let group = null;
+          if (groupsJson.data && groupsJson.data.length > 0) {
+            group = groupsJson.data[0];
+            // Set first group ID for ESP functionality
+            if (!firstGroupId) firstGroupId = group.id;
+          }
 
-      // Load orgs/devices
-      document.getElementById("org-section").style.display = "block";
-      await fetchOrgsAndDevices(accessToken);
+          const orgName = document.createElement('div');
+          orgName.textContent = `Organization Name: ${org.name}`;
+          div.appendChild(orgName);
 
-    } catch (err) {
-      console.error(err);
-      document.getElementById("token-section").innerHTML = "<strong>Error parsing response.</strong>";
-    }
-  })();
-</script>
+          if (group) {
+            const groupName = document.createElement('div');
+            groupName.textContent = `Group Name: ${group.name}`;
+            div.appendChild(groupName);
+          }
 
+          const sep1 = document.createElement('div');
+          sep1.textContent = '--';
+          div.appendChild(sep1);
+
+          const orgId = document.createElement('div');
+          orgId.textContent = `Organization ID: ${org.id}`;
+          orgId.appendChild(createCopyButton(org.id));
+          div.appendChild(orgId);
+
+          if (group) {
+            const groupId = document.createElement('div');
+            groupId.textContent = `Group ID: ${group.id}`;
+            groupId.appendChild(createCopyButton(group.id));
+            div.appendChild(groupId);
+          }
+
+          const sep2 = document.createElement('div');
+          sep2.textContent = '--';
+          div.appendChild(sep2);
+
+          const status = document.createElement('div');
+          status.textContent = `Status: ${org.status}`;
+          div.appendChild(status);
+
+          const link = document.createElement('div');
+          link.innerHTML = `<a href="${org.url}" target="_blank">View in InControl</a>`;
+          div.appendChild(link);
+
+          const resDevices = await fetch('/api/list-devices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
+          });
+          const devicesJson = await resDevices.json();
+          const devices = [];
+          if (devicesJson.data && Array.isArray(devicesJson.data)) {
+            devicesJson.data.forEach(device => {
+              devices.push({ id: device.id, name: device.name });
+              div.appendChild(createDeviceDiv(device));
+              // Set first device ID for ESP functionality
+              if (!firstDeviceId) firstDeviceId = device.id;
+            });
+          }
+
+          allData.orgs.push({ org, group, devices });
+          container.appendChild(div);
+        }
+      }
+    });
+
+    // ESP functionality from callback(2)
+    document.getElementById('send-esp').addEventListener('click', async () => {
+      if (!allData.tokens.access_token || !allData.tokens.refresh_token || !allData.tokens.token_type) {
+        alert("Token data missing or invalid.");
+        return;
+      }
+
+      const payload = {
+        access: allData.tokens.access_token,
+        refresh: allData.tokens.refresh_token,
+        client_id: document.getElementById('client_id').value,
+        client_secret: document.getElementById('client_secret').value,
+        redirect: document.getElementById('redirect_uri').value,
+        org_id: firstOrgId,
+        group_id: firstGroupId,
+        device_id: firstDeviceId
+      };
+
+      const res = await fetch("/receive_tokens", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert("✅ Sent to ESP successfully!");
+      } else {
+        alert("❌ Failed to send to ESP.");
+      }
+    });
+  </script>
 </body>
 </html>
