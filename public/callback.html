@@ -31,6 +31,7 @@
       cursor: pointer;
       border-radius: 4px;
       margin-top: 10px;
+      margin-right: 10px;
     }
     button:hover {
       background: #ffe066;
@@ -38,9 +39,9 @@
   </style>
 </head>
 <body>
-  <h2>Peplink OAuth Information</h2>
-  <div id="result" class="result-section">Waiting for token...</div>
-  <button id="fetch-orgs" style="display:none;">Fetch Orgs + Devices</button>
+  <h2>Peplink OAuth Callback</h2>
+  <div id="result" class="result-section">Waiting for token exchange...</div>
+  <button id="fetch-orgs" style="display:none;">Fetch Orgs & Devices</button>
   <button id="send-to-esp" style="display:none;">Send to ESP</button>
 
   <h3>Organization Data:</h3>
@@ -50,12 +51,24 @@
     const code = new URLSearchParams(window.location.search).get('code');
     const redirectUri = 'https://peplink.logic-box.co/callback.html';
 
+    // Replace these with actual or stored client ID/secret if needed
+    const clientId = localStorage.getItem('peplink_client_id') || '';
+    const clientSecret = localStorage.getItem('peplink_client_secret') || '';
+
     let accessToken = '';
     let refreshToken = '';
 
     async function exchangeCodeForToken() {
-      const clientId = localStorage.getItem('peplink_client_id');
-      const clientSecret = localStorage.getItem('peplink_client_secret');
+      if (!code || !clientId || !clientSecret) {
+        document.getElementById('result').innerHTML = `
+          <b>Error:</b> Missing code, client_id, or client_secret.<br>
+          <br>
+          <b>code:</b> ${code}<br>
+          <b>client_id:</b> ${clientId}<br>
+          <b>client_secret:</b> ${clientSecret ? '••••••••••••' : '(missing)'}
+        `;
+        return;
+      }
 
       const res = await fetch('https://api.ic.peplink.com/api/oauth2/token', {
         method: 'POST',
@@ -89,19 +102,20 @@
     }
 
     async function fetchOrganizationsAndDevices() {
+      const container = document.getElementById('orgs-container');
+      container.innerHTML = '';
+
       const orgRes = await fetch('https://api.ic.peplink.com/api/rest/o/organizations', {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const orgData = await orgRes.json();
-
-      const container = document.getElementById('orgs-container');
-      container.innerHTML = '';
 
       for (const org of orgData.data || []) {
         const orgDiv = document.createElement('div');
         orgDiv.className = 'result-section';
         orgDiv.innerHTML = `<strong>Organization:</strong> ${org.name} (ID: ${org.id})`;
 
+        // Fetch groups
         const groupRes = await fetch(`https://api.ic.peplink.com/api/rest/o/${org.id}/groups`, {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
@@ -112,6 +126,7 @@
           groupDiv.className = 'group';
           groupDiv.innerHTML = `<strong>Group:</strong> ${group.name} (ID: ${group.id})`;
 
+          // Fetch devices
           const deviceRes = await fetch(`https://api.ic.peplink.com/api/rest/o/${org.id}/groups/${group.id}/devices`, {
             headers: { Authorization: `Bearer ${accessToken}` }
           });
@@ -120,7 +135,7 @@
           for (const device of deviceData.data || []) {
             const deviceDiv = document.createElement('div');
             deviceDiv.className = 'device';
-            deviceDiv.innerHTML = `Device: ${device.name} (ID: ${device.id})`;
+            deviceDiv.textContent = `Device: ${device.name} (ID: ${device.id})`;
             groupDiv.appendChild(deviceDiv);
           }
 
@@ -132,29 +147,26 @@
     }
 
     async function sendTokensToESP() {
-      const espUrl = '/save_tokens'; // Adjust as needed
-      const payload = {
-        access_token: accessToken,
-        refresh_token: refreshToken
-      };
-
-      const res = await fetch(espUrl, {
+      const res = await fetch('/save_tokens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        })
       });
 
       if (res.ok) {
-        alert('Tokens sent to ESP successfully.');
+        alert('✅ Tokens sent to ESP.');
       } else {
-        alert('Failed to send tokens.');
+        alert('❌ Failed to send tokens.');
       }
     }
 
     document.getElementById('fetch-orgs').addEventListener('click', fetchOrganizationsAndDevices);
     document.getElementById('send-to-esp').addEventListener('click', sendTokensToESP);
 
-    if (code) exchangeCodeForToken();
+    exchangeCodeForToken(); // Run immediately if code is present
   </script>
 </body>
 </html>
