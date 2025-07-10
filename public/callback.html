@@ -128,18 +128,31 @@
         try {
           var decoded = atob(decodeURIComponent(state));
           var parsed = JSON.parse(decoded);
-          if (parsed.client_id) storedClientId = parsed.client_id;
-          if (parsed.client_secret) storedClientSecret = parsed.client_secret;
+          console.log("🔍 Parsed state parameter:", parsed);
+          if (parsed.client_id) {
+            storedClientId = parsed.client_id;
+            console.log("✅ Client ID from state:", storedClientId.substring(0, 8) + "...");
+          }
+          if (parsed.client_secret) {
+            storedClientSecret = parsed.client_secret;
+            console.log("✅ Client Secret from state:", storedClientSecret.substring(0, 8) + "...");
+          }
         } catch (e) {
           console.error('Failed to parse state param:', e);
         }
       }
 
+      console.log("🔧 Setting form values:");
+      console.log("  Client ID:", storedClientId.substring(0, 8) + "...");
+      console.log("  Client Secret:", storedClientSecret.substring(0, 8) + "...");
+
       if (document.getElementById('client_id')) {
         document.getElementById('client_id').value = storedClientId;
+        console.log("✅ Client ID field set");
       }
       if (document.getElementById('client_secret')) {
         document.getElementById('client_secret').value = storedClientSecret;
+        console.log("✅ Client Secret field set");
       }
       if (document.getElementById('redirect_uri')) {
         document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
