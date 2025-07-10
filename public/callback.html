@@ -92,6 +92,7 @@
   <div id="result"></div>
   <button id="fetch-ids" style="display:none;">Fetch Organizations & Devices</button>
   <button id="export-btn" style="display:none;">Export All Info</button>
+  <button id="send-esp" style="display:none;">Send to ESP</button>
 
   <h3>Organization Data:</h3>
   <div id="ids-result"></div>
@@ -105,11 +106,9 @@
     const state = urlParams.get('state');
     if (code) document.getElementById('code').value = code;
 
-    // Fallbacks from localStorage
     let storedClientId = localStorage.getItem('peplink_client_id') || '';
     let storedClientSecret = localStorage.getItem('peplink_client_secret') || '';
 
-    // Parse state param if present
     if (state) {
       try {
         const decoded = atob(decodeURIComponent(state));
@@ -179,6 +178,7 @@
         allData.tokens = json;
         document.getElementById('fetch-ids').style.display = 'inline-block';
         document.getElementById('export-btn').style.display = 'inline-block';
+        document.getElementById('send-esp').style.display = 'inline-block';
 
         const div = document.createElement('div');
         div.className = 'result-section';
@@ -204,6 +204,93 @@
         container.appendChild(div);
       } else {
         container.textContent = JSON.stringify(json, null, 2);
+      }
+    });
+
+    document.getElementById('fetch-ids').addEventListener('click', async () => {
+      if (!lastAccessToken) {
+        alert("Access token not available.");
+        return;
+      }
+
+      const res = await fetch("https://api.ic.peplink.com/rest/o", {
+        headers: {
+          Authorization: `Bearer ${lastAccessToken}`
+        }
+      });
+
+      const json = await res.json();
+      console.log("Org data:", json);
+      allData.orgs = json.data || [];
+
+      const container = document.getElementById('ids-result');
+      container.innerHTML = '';
+
+      if (json.data && json.data.length) {
+        json.data.forEach(org => {
+          const div = document.createElement('div');
+          div.className = 'result-section';
+
+          const orgId = document.createElement('div');
+          orgId.innerHTML = `Org ID: <strong>${org.id}</strong>`;
+          orgId.appendChild(createCopyButton(org.id));
+
+          const orgName = document.createElement('div');
+          orgName.innerHTML = `Org Name: ${org.name}`;
+
+          div.appendChild(orgId);
+          div.appendChild(orgName);
+
+          if (org.groups && org.groups.length) {
+            org.groups.forEach(group => {
+              const groupDiv = document.createElement('div');
+              groupDiv.innerHTML = `Group: <strong>${group.name}</strong> (ID: ${group.id})`;
+              groupDiv.style.marginLeft = '20px';
+              div.appendChild(groupDiv);
+
+              if (group.devices && group.devices.length) {
+                group.devices.forEach(device => {
+                  const devDiv = createDeviceDiv(device);
+                  devDiv.style.marginLeft = '40px';
+                  div.appendChild(devDiv);
+                });
+              }
+            });
+          }
+
+          container.appendChild(div);
+        });
+      } else {
+        container.innerHTML = "<i>No organization data returned.</i>";
+      }
+    });
+
+    document.getElementById('send-esp').addEventListener('click', async () => {
+      if (!allData.tokens.access_token || !allData.tokens.refresh_token || !allData.tokens.token_type) {
+        alert("Token data missing or invalid.");
+        return;
+      }
+
+      const payload = {
+        access: allData.tokens.access_token,
+        refresh: allData.tokens.refresh_token,
+        client_id: document.getElementById('client_id').value,
+        client_secret: document.getElementById('client_secret').value,
+        redirect: document.getElementById('redirect_uri').value
+      };
+
+      const res = await fetch("/receive_tokens", {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert("✅ Sent to ESP successfully!");
+      } else {
+        alert("❌ Failed to send to ESP.");
       }
     });
   </script>
