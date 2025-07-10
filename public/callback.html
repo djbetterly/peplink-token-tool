@@ -92,8 +92,7 @@
   <div id="result"></div>
   <button id="fetch-ids" style="display:none;">Fetch Organizations & Devices</button>
   <button id="export-btn" style="display:none;">Export All Info</button>
-  <button id="copy-tokens" style="display:none;">Copy Tokens Only</button>
-  <button id="copy-payload" style="display:none;">Copy Full Payload</button>
+  <button id="copy-tokens" style="display:none;">Copy Tokens</button>
 
   <h3>Organization Data:</h3>
   <div id="ids-result"></div>
@@ -239,7 +238,6 @@
           document.getElementById('fetch-ids').style.display = 'inline-block';
           document.getElementById('export-btn').style.display = 'inline-block';
           document.getElementById('copy-tokens').style.display = 'inline-block';
-          document.getElementById('copy-payload').style.display = 'inline-block';
           
           // Set up button listeners
           setupButtonListeners();
@@ -450,40 +448,6 @@
         });
       } else {
         fallbackCopy(tokenString);
-      }
-    }
-
-    function handleCopyPayload() {
-      console.log("🔄 Copy Full Payload button clicked");
-      
-      if (!allData.tokens.access_token) {
-        alert("No token data available. Please fetch tokens first.");
-        return;
-      }
-
-      var payload = {
-        access: allData.tokens.access_token,
-        refresh: allData.tokens.refresh_token,
-        client_id: document.getElementById('client_id').value,
-        client_secret: document.getElementById('client_secret').value,
-        redirect: document.getElementById('redirect_uri').value,
-        org_id: firstOrgId,
-        group_id: firstGroupId,
-        device_id: firstDeviceId
-      };
-
-      var payloadString = JSON.stringify(payload, null, 2);
-      console.log("📦 Full payload to copy:", payloadString);
-      
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(payloadString).then(function() {
-          alert('📋 Full payload copied to clipboard!\n\nNow go to your ESP utilities page and paste the values into the form fields.');
-        }).catch(function(error) {
-          console.error('Copy failed:', error);
-          fallbackCopy(payloadString);
-        });
-      } else {
-        fallbackCopy(payloadString);
       }
     }
   </script>
