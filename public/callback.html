@@ -132,8 +132,9 @@
 
     document.getElementById('client_id').value = storedClientId;
     document.getElementById('client_secret').value = storedClientSecret;
-    document.getElementById('esp_ip').value = localStorage.getItem('peplink_esp_ip') || '192.168.112.111';
-    document.getElementById('esp_page').value = localStorage.getItem('peplink_esp_page') || '/utilities';
+    document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
+    document.getElementById('esp_ip').value = storedEspIp;
+    document.getElementById('esp_page').value = storedEspPage;
 
     function createCopyButton(text) {
       const btn = document.createElement('button');
@@ -220,7 +221,7 @@
       }
     });
 
-    // Use callback(1) comprehensive polling approach
+    // Use callback(1) comprehensive polling approach with server-side APIs
     document.getElementById('fetch-ids').addEventListener('click', async () => {
       if (!lastAccessToken) {
         alert('No access token available.');
@@ -319,12 +320,27 @@
       }
     });
 
-    // ESP functionality from callback(2)
+    // ESP functionality with enhanced error handling
     document.getElementById('send-esp').addEventListener('click', async () => {
+      console.log("🔄 Send to ESP button clicked");
+      
       if (!allData.tokens.access_token || !allData.tokens.refresh_token || !allData.tokens.token_type) {
         alert("Token data missing or invalid.");
+        console.error("❌ Missing token data:", allData.tokens);
         return;
       }
+
+      const espIp = document.getElementById('esp_ip').value;
+      const espPage = document.getElementById('esp_page').value;
+      
+      console.log("📡 ESP Target:", espIp, espPage);
+      console.log("🔑 Token data:", {
+        access: allData.tokens.access_token?.substring(0, 8) + "...",
+        refresh: allData.tokens.refresh_token?.substring(0, 8) + "...",
+        org_id: firstOrgId,
+        group_id: firstGroupId,
+        device_id: firstDeviceId
+      });
 
       const payload = {
         access: allData.tokens.access_token,
@@ -337,21 +353,66 @@
         device_id: firstDeviceId
       };
 
-      const espIp = document.getElementById('esp_ip').value;
-      const res = await fetch(`http://${espIp}/receive_tokens`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const targetUrl = `http://${espIp}/receive_tokens`;
+      console.log("🎯 Sending to:", targetUrl);
+      console.log("📦 Payload:", payload);
 
-      if (res.ok) {
-        const espIp = document.getElementById('esp_ip').value;
-        const espPage = document.getElementById('esp_page').value;
-        alert(`✅ Sent to ESP successfully! You can now visit http://${espIp}${espPage} to see the updated tokens.`);
-      } else {
-        alert("❌ Failed to send to ESP.");
+      // Check if we're on HTTPS and warn about mixed content
+      if (window.location.protocol === 'https:') {
+        const proceed = confirm(
+          `⚠️ Mixed Content Warning!\n\n` +
+          `You're on HTTPS but trying to send to HTTP (ESP).\n` +
+          `This will likely fail due to browser security.\n\n` +
+          `Options:\n` +
+          `1. Click OK to try anyway (may fail)\n` +
+          `2. Click Cancel and copy the data manually\n` +
+          `3. Access this page via HTTP instead\n\n` +
+          `Try anyway?`
+        );
+        
+        if (!proceed) {
+          // Show manual copy option
+          const manualData = JSON.stringify(payload, null, 2);
+          alert(`Copy this data and paste it manually:\n\n${manualData}`);
+          return;
+        }
+      }
+
+      try {
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        console.log("📈 Response status:", res.status);
+        console.log("📋 Response headers:", Object.fromEntries(res.headers.entries()));
+        
+        const responseText = await res.text();
+        console.log("📄 Response body:", responseText);
+
+        if (res.ok) {
+          alert(`✅ Sent to ESP successfully! You can now visit http://${espIp}${espPage} to see the updated tokens.`);
+        } else {
+          alert(`❌ Failed to send to ESP. Status: ${res.status}\n\nCheck console for details.`);
+        }
+      } catch (error) {
+        console.error("🚨 Fetch error:", error);
+        
+        if (error.message.includes('Mixed Content') || window.location.protocol === 'https:') {
+          alert(
+            `❌ Mixed Content Error!\n\n` +
+            `Try one of these solutions:\n` +
+            `1. Access this page via HTTP: http://peplink.logic-box.co/callback.html?${window.location.search.substring(1)}\n` +
+            `2. Copy the data manually (check console for payload)\n` +
+            `3. Set up HTTPS on your ESP`
+          );
+          console.log("📋 Manual payload for copy/paste:", JSON.stringify(payload, null, 2));
+        } else {
+          alert(`❌ Network error: ${error.message}\n\nMake sure ESP is accessible at http://${espIp}`);
+        }
       }
     });
   </script>
