@@ -112,7 +112,7 @@
     // Parse state param if present
     if (state) {
       try {
-        const decoded = atob(state);
+        const decoded = atob(decodeURIComponent(state));
         const parsed = JSON.parse(decoded);
         if (parsed.client_id) storedClientId = parsed.client_id;
         if (parsed.client_secret) storedClientSecret = parsed.client_secret;
