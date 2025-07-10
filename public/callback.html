@@ -379,40 +379,33 @@
       }
 
       try {
-        const res = await fetch(targetUrl, {
+        // Use server-side proxy to avoid mixed content issues
+        const res = await fetch('/api/send-to-esp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            esp_ip: espIp,
+            esp_page: espPage,
+            payload: payload
+          })
         });
 
         console.log("📈 Response status:", res.status);
-        console.log("📋 Response headers:", Object.fromEntries(res.headers.entries()));
         
-        const responseText = await res.text();
-        console.log("📄 Response body:", responseText);
+        const responseData = await res.json();
+        console.log("📄 Response body:", responseData);
 
-        if (res.ok) {
+        if (res.ok && responseData.success) {
           alert(`✅ Sent to ESP successfully! You can now visit http://${espIp}${espPage} to see the updated tokens.`);
         } else {
-          alert(`❌ Failed to send to ESP. Status: ${res.status}\n\nCheck console for details.`);
+          alert(`❌ Failed to send to ESP: ${responseData.message}\n\nCheck console for details.`);
         }
       } catch (error) {
         console.error("🚨 Fetch error:", error);
-        
-        if (error.message.includes('Mixed Content') || window.location.protocol === 'https:') {
-          alert(
-            `❌ Mixed Content Error!\n\n` +
-            `Try one of these solutions:\n` +
-            `1. Access this page via HTTP: http://peplink.logic-box.co/callback.html?${window.location.search.substring(1)}\n` +
-            `2. Copy the data manually (check console for payload)\n` +
-            `3. Set up HTTPS on your ESP`
-          );
-          console.log("📋 Manual payload for copy/paste:", JSON.stringify(payload, null, 2));
-        } else {
-          alert(`❌ Network error: ${error.message}\n\nMake sure ESP is accessible at http://${espIp}`);
-        }
+        alert(`❌ Network error: ${error.message}\n\nFalling back to manual copy mode...`);
+        console.log("📋 Manual payload for copy/paste:", JSON.stringify(payload, null, 2));
       }
     });
   </script>
