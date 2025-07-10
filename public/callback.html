@@ -291,14 +291,6 @@
           handleCopyTokens();
         };
       }
-      
-      // Copy payload button
-      var copyPayloadBtn = document.getElementById('copy-payload');
-      if (copyPayloadBtn) {
-        copyPayloadBtn.onclick = function() {
-          handleCopyPayload();
-        };
-      }
     }
 
     function handleFetchIds() {
@@ -309,12 +301,14 @@
         return;
       }
 
-      fetch('/api/list-orgs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: lastAccessToken })
+      // Call Peplink API directly
+      fetch('https://api.ic.peplink.com/rest/o?access_token=' + lastAccessToken)
+      .then(function(res) { 
+        if (res.status === 401) {
+          throw new Error('Access token expired or invalid (401)');
+        }
+        return res.json(); 
       })
-      .then(function(res) { return res.json(); })
       .then(function(json) {
         var container = document.getElementById('ids-result');
         container.innerHTML = '';
@@ -326,25 +320,25 @@
       })
       .catch(function(error) {
         console.error('Error fetching orgs:', error);
+        alert('Error fetching organizations: ' + error.message);
       });
     }
 
     function processOrganizations(orgs, container) {
-      var processed = 0;
-      
       orgs.forEach(function(org, index) {
         if (!firstOrgId) firstOrgId = org.id;
 
         var div = document.createElement('div');
         div.className = 'result-section';
 
-        // Fetch groups for this org
-        fetch('/api/list-groups', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
+        // Fetch groups for this org - call Peplink API directly
+        fetch('https://api.ic.peplink.com/rest/o/' + org.id + '/g?access_token=' + lastAccessToken)
+        .then(function(res) { 
+          if (res.status === 401) {
+            throw new Error('Access token expired or invalid (401)');
+          }
+          return res.json(); 
         })
-        .then(function(res) { return res.json(); })
         .then(function(groupsJson) {
           var group = null;
           if (groupsJson.data && groupsJson.data.length > 0) {
@@ -390,14 +384,21 @@
           link.innerHTML = '<a href="' + org.url + '" target="_blank">View in InControl</a>';
           div.appendChild(link);
 
-          // Fetch devices
-          return fetch('/api/list-devices', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: lastAccessToken, org_id: org.id })
-          });
+          // Fetch devices - call Peplink API directly
+          if (group) {
+            return fetch('https://api.ic.peplink.com/rest/o/' + org.id + '/g/' + group.id + '/d?access_token=' + lastAccessToken);
+          } else {
+            // Skip devices if no group
+            return Promise.resolve({ ok: false });
+          }
         })
-        .then(function(res) { return res.json(); })
+        .then(function(res) { 
+          if (!res.ok) return { data: [] };
+          if (res.status === 401) {
+            throw new Error('Access token expired or invalid (401)');
+          }
+          return res.json(); 
+        })
         .then(function(devicesJson) {
           var devices = [];
           if (devicesJson.data && Array.isArray(devicesJson.data)) {
@@ -413,6 +414,10 @@
         })
         .catch(function(error) {
           console.error('Error processing org:', error);
+          var errorDiv = document.createElement('div');
+          errorDiv.textContent = 'Error processing ' + org.name + ': ' + error.message;
+          errorDiv.style.color = '#ff6666';
+          container.appendChild(errorDiv);
         });
       });
     }
