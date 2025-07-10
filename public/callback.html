@@ -100,6 +100,7 @@
   <script>
     let lastAccessToken = null;
     let allData = { tokens: {}, orgs: [] };
+    let firstOrgId = null, firstGroupId = null, firstDeviceId = null;
 
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -227,39 +228,41 @@
       container.innerHTML = '';
 
       if (json.data && json.data.length) {
-        json.data.forEach(org => {
-          const div = document.createElement('div');
-          div.className = 'result-section';
+        const org = json.data[0];
+        firstOrgId = org.id;
+        const div = document.createElement('div');
+        div.className = 'result-section';
 
-          const orgId = document.createElement('div');
-          orgId.innerHTML = `Org ID: <strong>${org.id}</strong>`;
-          orgId.appendChild(createCopyButton(org.id));
+        const orgId = document.createElement('div');
+        orgId.innerHTML = `Org ID: <strong>${org.id}</strong>`;
+        orgId.appendChild(createCopyButton(org.id));
 
-          const orgName = document.createElement('div');
-          orgName.innerHTML = `Org Name: ${org.name}`;
+        const orgName = document.createElement('div');
+        orgName.innerHTML = `Org Name: ${org.name}`;
 
-          div.appendChild(orgId);
-          div.appendChild(orgName);
+        div.appendChild(orgId);
+        div.appendChild(orgName);
 
-          if (org.groups && org.groups.length) {
-            org.groups.forEach(group => {
-              const groupDiv = document.createElement('div');
-              groupDiv.innerHTML = `Group: <strong>${group.name}</strong> (ID: ${group.id})`;
-              groupDiv.style.marginLeft = '20px';
-              div.appendChild(groupDiv);
+        if (org.groups && org.groups.length) {
+          const group = org.groups[0];
+          firstGroupId = group.id;
 
-              if (group.devices && group.devices.length) {
-                group.devices.forEach(device => {
-                  const devDiv = createDeviceDiv(device);
-                  devDiv.style.marginLeft = '40px';
-                  div.appendChild(devDiv);
-                });
-              }
-            });
+          const groupDiv = document.createElement('div');
+          groupDiv.innerHTML = `Group: <strong>${group.name}</strong> (ID: ${group.id})`;
+          groupDiv.style.marginLeft = '20px';
+          div.appendChild(groupDiv);
+
+          if (group.devices && group.devices.length) {
+            const device = group.devices[0];
+            firstDeviceId = device.id;
+
+            const devDiv = createDeviceDiv(device);
+            devDiv.style.marginLeft = '40px';
+            div.appendChild(devDiv);
           }
+        }
 
-          container.appendChild(div);
-        });
+        container.appendChild(div);
       } else {
         container.innerHTML = "<i>No organization data returned.</i>";
       }
@@ -276,11 +279,14 @@
         refresh: allData.tokens.refresh_token,
         client_id: document.getElementById('client_id').value,
         client_secret: document.getElementById('client_secret').value,
-        redirect: document.getElementById('redirect_uri').value
+        redirect: document.getElementById('redirect_uri').value,
+        org_id: firstOrgId,
+        group_id: firstGroupId,
+        device_id: firstDeviceId
       };
 
       const res = await fetch("/receive_tokens", {
-        method: 'GET',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
