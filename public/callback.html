@@ -356,6 +356,27 @@
       console.log("🎯 Sending to:", targetUrl);
       console.log("📦 Payload:", payload);
 
+      // Check if we're on HTTPS and warn about mixed content
+      if (window.location.protocol === 'https:') {
+        const proceed = confirm(
+          `⚠️ Mixed Content Warning!\n\n` +
+          `You're on HTTPS but trying to send to HTTP (ESP).\n` +
+          `This will likely fail due to browser security.\n\n` +
+          `Options:\n` +
+          `1. Click OK to try anyway (may fail)\n` +
+          `2. Click Cancel and copy the data manually\n` +
+          `3. Access this page via HTTP instead\n\n` +
+          `Try anyway?`
+        );
+        
+        if (!proceed) {
+          // Show manual copy option
+          const manualData = JSON.stringify(payload, null, 2);
+          alert(`Copy this data and paste it manually:\n\n${manualData}`);
+          return;
+        }
+      }
+
       try {
         const res = await fetch(targetUrl, {
           method: 'POST',
@@ -378,7 +399,19 @@
         }
       } catch (error) {
         console.error("🚨 Fetch error:", error);
-        alert(`❌ Network error: ${error.message}\n\nMake sure ESP is accessible at http://${espIp}`);
+        
+        if (error.message.includes('Mixed Content') || window.location.protocol === 'https:') {
+          alert(
+            `❌ Mixed Content Error!\n\n` +
+            `Try one of these solutions:\n` +
+            `1. Access this page via HTTP: http://peplink.logic-box.co/callback.html?${window.location.search.substring(1)}\n` +
+            `2. Copy the data manually (check console for payload)\n` +
+            `3. Set up HTTPS on your ESP`
+          );
+          console.log("📋 Manual payload for copy/paste:", JSON.stringify(payload, null, 2));
+        } else {
+          alert(`❌ Network error: ${error.message}\n\nMake sure ESP is accessible at http://${espIp}`);
+        }
       }
     });
   </script>
