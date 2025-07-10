@@ -85,10 +85,6 @@
     <input id="client_secret"><br><br>
     <label>Redirect URI:</label><br>
     <input id="redirect_uri" value="https://peplink.logic-box.co/callback.html"><br><br>
-    <label>ESP IP Address:</label><br>
-    <input id="esp_ip" value="192.168.112.111" placeholder="192.168.1.100"><br><br>
-    <label>ESP Page Path:</label><br>
-    <input id="esp_page" value="/utilities" placeholder="/utilities or /config"><br><br>
     <button type="submit">Fetch Token</button>
   </form>
 
@@ -115,8 +111,6 @@
     // Handle state parameter for reauthorization
     let storedClientId = localStorage.getItem('peplink_client_id') || '';
     let storedClientSecret = localStorage.getItem('peplink_client_secret') || '';
-    let storedEspIp = localStorage.getItem('peplink_esp_ip') || '192.168.112.111';
-    let storedEspPage = localStorage.getItem('peplink_esp_page') || '/utilities';
 
     if (state) {
       try {
@@ -124,8 +118,6 @@
         const parsed = JSON.parse(decoded);
         if (parsed.client_id) storedClientId = parsed.client_id;
         if (parsed.client_secret) storedClientSecret = parsed.client_secret;
-        if (parsed.esp_ip) storedEspIp = parsed.esp_ip;
-        if (parsed.esp_page) storedEspPage = parsed.esp_page;
       } catch (e) {
         console.error('Failed to parse state param:', e);
       }
@@ -134,8 +126,6 @@
     document.getElementById('client_id').value = storedClientId;
     document.getElementById('client_secret').value = storedClientSecret;
     document.getElementById('redirect_uri').value = localStorage.getItem('peplink_redirect_uri') || 'https://peplink.logic-box.co/callback.html';
-    document.getElementById('esp_ip').value = storedEspIp;
-    document.getElementById('esp_page').value = storedEspPage;
 
     function createCopyButton(text) {
       const btn = document.createElement('button');
@@ -175,8 +165,6 @@
       localStorage.setItem('peplink_client_id', body.client_id);
       localStorage.setItem('peplink_client_secret', body.client_secret);
       localStorage.setItem('peplink_redirect_uri', body.redirect_uri);
-      localStorage.setItem('peplink_esp_ip', document.getElementById('esp_ip').value);
-      localStorage.setItem('peplink_esp_page', document.getElementById('esp_page').value);
 
       const res = await fetch('/api/exchange-code', {
         method: 'POST',
